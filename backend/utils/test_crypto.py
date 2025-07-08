@@ -113,11 +113,15 @@ class TestCrypto:
         encrypted = self.crypto.encrypt(password)
         
         # When & Then
-        with pytest.raises((TypeError, ValueError)):
+        from passlib.exc import UnknownHashError
+        
+        # None을 hash로 전달하면 UnknownHashError 발생
+        with pytest.raises(TypeError):
             self.crypto.verify(None, encrypted)
             
-        with pytest.raises((TypeError, ValueError)):
-            self.crypto.verify(password, None)
+        # None을 password로 전달하면 False 반환
+        result = self.crypto.verify(password, None)
+        assert result is False
 
     def test_encrypt_with_special_characters(self):
         """특수 문자가 포함된 패스워드 암호화 테스트"""

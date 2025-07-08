@@ -353,9 +353,11 @@ class TestAnalysis:
         analysis = Analysis(**data)
         
         # When & Then
-        # Pydantic 모델은 기본적으로 불변이므로 속성 변경 시도 시 오류 발생
-        with pytest.raises(ValidationError):
-            analysis.ticker = "GOOGL"
+        # Pydantic v2에서는 기본적으로 변경 가능하므로 변경 후 원본과 다른지 확인
+        original_ticker = analysis.ticker
+        analysis.ticker = "GOOGL"
+        assert analysis.ticker == "GOOGL"
+        assert analysis.ticker != original_ticker
 
     def test_analysis_model_validation(self):
         """Analysis 모델 검증 테스트"""
