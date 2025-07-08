@@ -19,7 +19,7 @@ class MemberService:
     ):
         self.member_repo = member_repo
         self.crypto = crypto
-        self.db_session = session
+        self.session = session
         self.ulid = ulid
 
     def create_member(
@@ -33,7 +33,7 @@ class MemberService:
             if self.member_repo.find_by_email(email):
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
         except Exception as e:
-            self.db_session.rollback()
+            self.session.rollback()
             raise e
 
         now = datetime.now()
@@ -48,7 +48,7 @@ class MemberService:
         )
 
         saved_member = self.member_repo.save(member_vo)
-        self.db_session.commit()
+        self.session.commit()
 
         return saved_member
 

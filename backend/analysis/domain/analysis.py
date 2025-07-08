@@ -5,9 +5,9 @@ from analysis.infra.db_models.analysis import AnalysisStatus
 
 class Analysis(BaseModel):
     id: str | None = None
-    member_id: str
-    ticker: str
-    analysis_date: date
+    member_id: str | None = None
+    ticker: str | None = None
+    analysis_date: date | None = None
     analysts_selected: list[str] = []
     research_depth: int = 1
     llm_provider: str = "google"
@@ -34,5 +34,5 @@ class Analysis(BaseModel):
     # 실행 결과 정보
     error_message: str | None = None
     completed_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
