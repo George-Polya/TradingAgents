@@ -1,21 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import LoginForm from '../components/auth/LoginForm';
 import RegisterForm from '../components/auth/RegisterForm';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage: React.FC = () => {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  useEffect(() => {
+    // 이미 로그인된 상태면 대시보드로 이동
+    if (isAuthenticated && !isLoading) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleSuccess = () => {
-    navigate('/dashboard');
+    navigate('/dashboard', { replace: true });
   };
 
   const handleRegisterSuccess = () => {
     setIsLoginMode(true);
   };
 
+  // 로딩 중이거나 이미 인증된 상태면 렌더링하지 않음
+  if (isLoading || isAuthenticated) {
+    return null;
+  }
+  
   return (
     <Container>
       <Content>

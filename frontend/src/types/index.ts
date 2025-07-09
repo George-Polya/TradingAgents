@@ -60,6 +60,7 @@ export interface AnalysisSessionResponse {
   status: AnalysisStatus;
   shallow_thinker: string;
   deep_thinker: string;
+  created_at?: string;
 }
 
 export interface AnalysisResultResponse {

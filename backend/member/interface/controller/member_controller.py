@@ -42,19 +42,20 @@ def login(
         "token_type" : "Bearer"
     }
 
-@router.get("/me", response_model=dict)
+@router.get("/me", response_model=MemberResponse)
+@inject
 def get_current_user_info(
-    current_user: CurrentMember = Depends(get_current_member)
+    current_user: CurrentMember = Depends(get_current_member),
+    member_service: MemberService = Depends(Provide[Container.member_service])
 ):
     """
     현재 로그인한 사용자 정보를 조회합니다.
     이 엔드포인트는 JWT 토큰이 필요하며, Swagger UI에서 Authorize 버튼을 활성화합니다.
     """
-    return {
-        "user_id": current_user.id,
-        "role": current_user.role,
-        "message": "Successfully authenticated"
-    }
+    member = member_service.get_member(current_user.id)
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    return member
 
 @router.get("/{member_id}", response_model=MemberResponse)
 @inject

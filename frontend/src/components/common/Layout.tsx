@@ -16,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Logo>Trading Agents</Logo>
           {user && (
             <UserSection>
-              <span>안녕하세요, {user.name || user.email}님</span>
+              <span>안녕하세요, {user.name || (user.email ? user.email.split('@')[0] : '사용자')}님</span>
               <LogoutButton onClick={logout}>로그아웃</LogoutButton>
             </UserSection>
           )}

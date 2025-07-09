@@ -30,8 +30,14 @@ api.interceptors.response.use(
   (error: AxiosError<ApiError>) => {
     if (error.response?.status === 401) {
       // Token expired or invalid
-      localStorage.removeItem('access_token');
-      window.location.href = '/login';
+      const currentPath = window.location.pathname;
+      
+      // 이미 로그인 페이지에 있으면 리다이렉트하지 않음
+      if (currentPath !== '/login') {
+        localStorage.removeItem('access_token');
+        // React Router를 사용하여 페이지 이동
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

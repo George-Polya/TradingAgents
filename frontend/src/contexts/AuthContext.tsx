@@ -35,11 +35,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       if (AuthService.isAuthenticated()) {
         const userData = await AuthService.getCurrentUser();
+        console.log('User data from API:', userData); // 디버깅용
         setUser(userData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch user:', error);
-      AuthService.logout();
+      // 401 에러일 때만 로그아웃 처리
+      if (error.response?.status === 401) {
+        AuthService.logout();
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }

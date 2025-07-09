@@ -13,7 +13,7 @@ class FinancialSituationMemory:
         self.embedding_provider = EmbeddingProviderFactory.create_provider(config)
 
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
-        self.situation_collection = self.chroma_client.create_collection(name=name)
+        self.situation_collection = self.chroma_client.get_or_create_collection(name=name)
 
     def get_embedding(self, text):
         """Get embedding for a text using the appropriate API"""

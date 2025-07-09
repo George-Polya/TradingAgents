@@ -6,8 +6,33 @@ import {
 } from '../types';
 
 export class AnalysisService {
-  static async getAnalysisList(): Promise<AnalysisSessionResponse[]> {
+  private static analysisCache: {
+    data: AnalysisSessionResponse[] | null;
+    timestamp: number;
+  } = {
+    data: null,
+    timestamp: 0
+  };
+  
+  private static CACHE_DURATION = 10000; // 10초 캐시
+  
+  static async getAnalysisList(forceRefresh: boolean = false): Promise<AnalysisSessionResponse[]> {
+    const now = Date.now();
+    
+    // 캐시가 유효하고 강제 새로고침이 아닌 경우 캐시 데이터 반환
+    if (!forceRefresh && this.analysisCache.data && 
+        (now - this.analysisCache.timestamp) < this.CACHE_DURATION) {
+      return this.analysisCache.data;
+    }
+    
     const response = await api.get<AnalysisSessionResponse[]>('/api/v1/analysis/');
+    
+    // 캐시 업데이트
+    this.analysisCache = {
+      data: response.data,
+      timestamp: now
+    };
+    
     return response.data;
   }
 

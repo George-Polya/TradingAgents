@@ -14,21 +14,61 @@ interface AnalysisResultProps {
 const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysisId, onBack }) => {
   const [analysis, setAnalysis] = useState<AnalysisResultResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
-  const fetchAnalysisResult = async () => {
+  const fetchAnalysisResult = async (abortSignal?: AbortSignal) => {
     try {
+      setIsLoading(true);
+      setHasError(false);
       const data = await AnalysisService.getAnalysisResult(analysisId);
-      setAnalysis(data);
+      
+      // 취소된 요청이 아닌 경우에만 상태 업데이트
+      if (!abortSignal?.aborted) {
+        setAnalysis(data);
+      }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || '분석 결과를 불러오는데 실패했습니다');
+      // 취소된 요청이 아닌 경우에만 에러 처리
+      if (!abortSignal?.aborted) {
+        console.error('분석 결과 로드 에러:', error);
+        if (error.response?.status === 404) {
+          setHasError(true);
+          setAnalysis(null);
+        } else if (error.response?.status !== 401) {
+          // 401 에러는 api.ts에서 처리하므로 토스트 표시 안 함
+          toast.error(error.response?.data?.error?.message || '분석 결과를 불러오는데 실패했습니다');
+          setHasError(true);
+        }
+      }
     } finally {
-      setIsLoading(false);
+      if (!abortSignal?.aborted) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchAnalysisResult();
+    const abortController = new AbortController();
+    
+    if (analysisId) {
+      fetchAnalysisResult(abortController.signal);
+    }
+    
+    // Cleanup function to cancel the request if component unmounts
+    return () => {
+      abortController.abort();
+    };
   }, [analysisId]);
+  
+  // 분석이 진행 중인 경우 주기적으로 업데이트
+  useEffect(() => {
+    if (analysis && (analysis.status === AnalysisStatus.RUNNING || analysis.status === AnalysisStatus.PENDING)) {
+      const interval = setInterval(() => {
+        fetchAnalysisResult();
+      }, 5000); // 5초마다 업데이트
+      
+      return () => clearInterval(interval);
+    }
+  }, [analysis?.status, analysisId]);
 
   const getStatusColor = (status: AnalysisStatus) => {
     switch (status) {
@@ -68,12 +108,16 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysisId, onBack }) =
     );
   }
 
-  if (!analysis) {
+  if (!analysis && hasError) {
     return (
       <Container>
         <ErrorMessage>분석 결과를 찾을 수 없습니다.</ErrorMessage>
       </Container>
     );
+  }
+  
+  if (!analysis) {
+    return null;
   }
 
   return (
@@ -111,80 +155,107 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysisId, onBack }) =
       )}
 
       <ResultsSection>
-        {analysis.market_report && (
-          <ReportSection>
-            <ReportTitle>시장 분석 보고서</ReportTitle>
+        {/* 시장 분석 보고서 */}
+        <ReportSection>
+          <ReportTitle>시장 분석 보고서</ReportTitle>
+          {analysis.market_report && !analysis.market_report.includes('def get_') ? (
             <ReportContent>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {analysis.market_report}
               </ReactMarkdown>
             </ReportContent>
-          </ReportSection>
-        )}
+          ) : (
+            <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
+          )}
+        </ReportSection>
 
-        {analysis.sentiment_report && (
-          <ReportSection>
-            <ReportTitle>감정 분석 보고서</ReportTitle>
+        {/* 감정 분석 보고서 */}
+        <ReportSection>
+          <ReportTitle>감정 분석 보고서</ReportTitle>
+          {analysis.sentiment_report ? (
             <ReportContent>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {analysis.sentiment_report}
               </ReactMarkdown>
             </ReportContent>
-          </ReportSection>
-        )}
+          ) : (
+            <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
+          )}
+        </ReportSection>
 
-        {analysis.news_report && (
-          <ReportSection>
-            <ReportTitle>뉴스 분석 보고서</ReportTitle>
+        {/* 뉴스 분석 보고서 */}
+        <ReportSection>
+          <ReportTitle>뉴스 분석 보고서</ReportTitle>
+          {analysis.news_report ? (
             <ReportContent>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {analysis.news_report}
               </ReactMarkdown>
             </ReportContent>
-          </ReportSection>
-        )}
+          ) : (
+            <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
+          )}
+        </ReportSection>
 
-        {analysis.fundamentals_report && (
-          <ReportSection>
-            <ReportTitle>펀더멘털 분석 보고서</ReportTitle>
+        {/* 펀더멘털 분석 보고서 */}
+        <ReportSection>
+          <ReportTitle>펀더멘털 분석 보고서</ReportTitle>
+          {analysis.fundamentals_report ? (
             <ReportContent>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {analysis.fundamentals_report}
               </ReactMarkdown>
             </ReportContent>
-          </ReportSection>
-        )}
+          ) : (
+            <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
+          )}
+        </ReportSection>
 
-        {analysis.trader_investment_plan && (
+        {/* 트레이더 투자 계획 */}
+        {(analysis.status === AnalysisStatus.COMPLETED || analysis.trader_investment_plan) && (
           <ReportSection>
             <ReportTitle>트레이더 투자 계획</ReportTitle>
-            <ReportContent>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {analysis.trader_investment_plan}
-              </ReactMarkdown>
-            </ReportContent>
+            {analysis.trader_investment_plan ? (
+              <ReportContent>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {analysis.trader_investment_plan}
+                </ReactMarkdown>
+              </ReportContent>
+            ) : (
+              <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
+            )}
           </ReportSection>
         )}
 
-        {analysis.final_trade_decision && (
+        {/* 최종 거래 결정 */}
+        {(analysis.status === AnalysisStatus.COMPLETED || analysis.final_trade_decision) && (
           <ReportSection>
             <ReportTitle>최종 거래 결정</ReportTitle>
-            <ReportContent>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {analysis.final_trade_decision}
-              </ReactMarkdown>
-            </ReportContent>
+            {analysis.final_trade_decision ? (
+              <ReportContent>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {analysis.final_trade_decision}
+                </ReactMarkdown>
+              </ReportContent>
+            ) : (
+              <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
+            )}
           </ReportSection>
         )}
 
-        {analysis.final_report && (
+        {/* 최종 보고서 */}
+        {(analysis.status === AnalysisStatus.COMPLETED || analysis.final_report) && (
           <ReportSection>
             <ReportTitle>최종 보고서</ReportTitle>
-            <ReportContent>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {analysis.final_report}
-              </ReactMarkdown>
-            </ReportContent>
+            {analysis.final_report ? (
+              <ReportContent>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {analysis.final_report}
+                </ReactMarkdown>
+              </ReportContent>
+            ) : (
+              <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
+            )}
           </ReportSection>
         )}
       </ResultsSection>
@@ -427,6 +498,16 @@ const ReportContent = styled.div`
   .task-list-item input {
     margin-right: 0.5rem;
   }
+`;
+
+const AnalyzingMessage = styled.div`
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px dashed #ddd;
 `;
 
 export default AnalysisResult;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -43,6 +43,66 @@ interface AnalysisFormProps {
   onSuccess?: (analysisId: string) => void;
 }
 
+interface LLMOption {
+  value: string;
+  label: string;
+}
+
+interface ProviderConfig {
+  url: string;
+  shallowModels: LLMOption[];
+  deepModels: LLMOption[];
+  defaultShallow: string;
+  defaultDeep: string;
+}
+
+const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
+  openai: {
+    url: 'https://api.openai.com/v1',
+    shallowModels: [
+      { value: 'gpt-4o-mini', label: 'GPT-4o-mini [빠르고 효율적인 경량 모델]' },
+      { value: 'gpt-4.1-nano', label: 'GPT-4.1-nano [초경량 기본 작업용 모델]' },
+      { value: 'gpt-4.1-mini', label: 'GPT-4.1-mini [성능이 좋은 컴팩트 모델]' },
+      { value: 'gpt-4o', label: 'GPT-4o [탄탄한 성능의 표준 모델]' },
+      { value: 'o4-mini', label: 'o4-mini [컴팩트한 특화 추론 모델]' },
+      { value: 'o3', label: 'o3 [고급 추론 완전체 모델]' },
+    ],
+    deepModels: [
+      { value: 'gpt-4.1-nano', label: 'GPT-4.1-nano [초경량 기본 작업용 모델]' },
+      { value: 'gpt-4.1-mini', label: 'GPT-4.1-mini [성능이 좋은 컴팩트 모델]' },
+      { value: 'gpt-4o', label: 'GPT-4o [탄탄한 성능의 표준 모델]' },
+      { value: 'o4-mini', label: 'o4-mini [컴팩트한 특화 추론 모델]' },
+      { value: 'o3-mini', label: 'o3-mini [경량 고급 추론 모델]' },
+      { value: 'o3', label: 'o3 [고급 추론 완전체 모델]' },
+      { value: 'o1', label: 'o1 [최고급 추론 및 문제 해결 모델]' },
+    ],
+    defaultShallow: 'gpt-4o-mini',
+    defaultDeep: 'gpt-4o',
+  },
+  google: {
+    url: 'https://generativelanguage.googleapis.com/v1',
+    shallowModels: [
+      { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash [차세대 기능과 속도, 사고력]' },
+      { value: 'gemini-2.5-flash-lite-preview-06-17', label: 'Gemini 2.5 Flash-Lite [비용 효율성과 낮은 지연시간]' },
+      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash [적응형 사고력, 비용 효율성]' },
+    ],
+    deepModels: [
+      { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash [차세대 기능과 속도, 사고력]' },
+      { value: 'gemini-2.5-flash-lite-preview-06-17', label: 'Gemini 2.5 Flash-Lite [비용 효율성과 낮은 지연시간]' },
+      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash [적응형 사고력, 비용 효율성]' },
+      { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro [가장 강력한 Gemini 모델]' },
+    ],
+    defaultShallow: 'gemini-2.5-flash-lite-preview-06-17',
+    defaultDeep: 'gemini-2.5-flash',
+  },
+};
+
+const RESEARCH_DEPTH_OPTIONS = [
+  { value: 1, label: '얕은 분석 - 빠른 분석, 간단한 토론' },
+  { value: 3, label: '중간 분석 - 적절한 깊이의 분석과 토론' },
+  { value: 5, label: '깊은 분석 - 포괄적인 연구와 심층 토론' },
+];
+
 const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -67,6 +127,16 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
   });
 
   const watchedAnalysts = watch('analysts');
+  const watchedProvider = watch('llm_provider');
+  
+  useEffect(() => {
+    if (watchedProvider && PROVIDER_CONFIGS[watchedProvider]) {
+      const config = PROVIDER_CONFIGS[watchedProvider];
+      setValue('backend_url', config.url);
+      setValue('shallow_thinker', config.defaultShallow);
+      setValue('deep_thinker', config.defaultDeep);
+    }
+  }, [watchedProvider, setValue]);
 
   const onSubmit = async (data: TradingAnalysisRequest) => {
     setIsLoading(true);
@@ -86,7 +156,7 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
     if (checked) {
       setValue('analysts', [...currentAnalysts, analyst]);
     } else {
-      setValue('analysts', currentAnalysts.filter(a => a !== analyst));
+      setValue('analysts', currentAnalysts.filter((a: AnalystType) => a !== analyst));
     }
   };
 
@@ -142,14 +212,17 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
 
         <FormGroup>
           <Label htmlFor="research_depth">연구 깊이</Label>
-          <Input
+          <Select
             id="research_depth"
-            type="number"
-            min="1"
-            max="5"
             {...register('research_depth')}
             hasError={!!errors.research_depth}
-          />
+          >
+            {RESEARCH_DEPTH_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
           {errors.research_depth && <ErrorMessage>{errors.research_depth.message}</ErrorMessage>}
         </FormGroup>
 
@@ -162,30 +235,39 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
           >
             <option value="google">Google</option>
             <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
           </Select>
           {errors.llm_provider && <ErrorMessage>{errors.llm_provider.message}</ErrorMessage>}
         </FormGroup>
 
         <FormGroup>
-          <Label htmlFor="shallow_thinker">Shallow Thinker 모델</Label>
-          <Input
+          <Label htmlFor="shallow_thinker">빠른 분석 LLM 엔진</Label>
+          <Select
             id="shallow_thinker"
-            type="text"
             {...register('shallow_thinker')}
             hasError={!!errors.shallow_thinker}
-          />
+          >
+            {watchedProvider && PROVIDER_CONFIGS[watchedProvider]?.shallowModels.map((model) => (
+              <option key={model.value} value={model.value}>
+                {model.label}
+              </option>
+            ))}
+          </Select>
           {errors.shallow_thinker && <ErrorMessage>{errors.shallow_thinker.message}</ErrorMessage>}
         </FormGroup>
 
         <FormGroup>
-          <Label htmlFor="deep_thinker">Deep Thinker 모델</Label>
-          <Input
+          <Label htmlFor="deep_thinker">심층 분석 LLM 엔진</Label>
+          <Select
             id="deep_thinker"
-            type="text"
             {...register('deep_thinker')}
             hasError={!!errors.deep_thinker}
-          />
+          >
+            {watchedProvider && PROVIDER_CONFIGS[watchedProvider]?.deepModels.map((model) => (
+              <option key={model.value} value={model.value}>
+                {model.label}
+              </option>
+            ))}
+          </Select>
           {errors.deep_thinker && <ErrorMessage>{errors.deep_thinker.message}</ErrorMessage>}
         </FormGroup>
 
