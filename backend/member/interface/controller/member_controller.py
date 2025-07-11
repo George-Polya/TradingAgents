@@ -10,6 +10,10 @@ from analysis.interface.dto import AnalysisSessionResponse
 from analysis.application.analysis_service import AnalysisService
 from pydantic import BaseModel
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/members", tags=["members"])
 
 class LoginResponse(BaseModel):
@@ -86,6 +90,7 @@ def get_current_user_info(
     member = member_service.get_member(current_user.id)
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    
     return member
 
 @router.post("/refresh", response_model=RefreshResponse)

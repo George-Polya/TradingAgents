@@ -74,8 +74,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      await AuthService.login({ username: email, password });
-      await fetchUser();
+      const response = await AuthService.login({ username: email, password });
+      setUser(response.member);
     } catch (error) {
       throw error;
     }

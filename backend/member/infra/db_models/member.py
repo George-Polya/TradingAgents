@@ -24,7 +24,8 @@ class Member(SQLModel, table=True):
     # lazy="select" (기본값): 필요할 때마다 별도 쿼리로 로드 (N+1 문제 발생 가능)
     # lazy="selectin": IN 절을 사용하여 한 번의 추가 쿼리로 모든 관련 객체 로드
     # lazy="joined": JOIN을 사용하여 한 번의 쿼리로 로드
+    # lazy="noload": 자동 로딩 비활성화, 명시적으로 로드해야 함
     analyses: list["Analysis"] = Relationship(
         back_populates="member",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        sa_relationship_kwargs={"lazy": "noload"}
     )

@@ -10,6 +10,9 @@ from dependency_injector.wiring import inject, Provide
 from analysis.application.analysis_service import AnalysisService
 from utils.containers import Container
 from analysis.application.websocket_manager import WebSocketManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -23,6 +26,7 @@ def get_analysis_list_for_member(
     현재 로그인한 사용자의 모든 분석 세션 목록을 조회합니다.
     """
     analyses = analysis_service.get_analysis_list(current_member.id)
+    logger.info(f"Analyses: {analyses}")
     return [
         AnalysisSessionResponse(
             id=analysis.id,

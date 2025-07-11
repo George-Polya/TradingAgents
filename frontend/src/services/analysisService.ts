@@ -23,10 +23,13 @@ export class AnalysisService {
     // 캐시가 유효하고 강제 새로고침이 아닌 경우 캐시 데이터 반환
     if (!forceRefresh && this.analysisCache.data && 
         (now - this.analysisCache.timestamp) < this.CACHE_DURATION) {
+      console.log('Returning cached data');
       return this.analysisCache.data;
     }
     
+    console.log('Fetching from API: /api/v1/analysis/');
     const response = await api.get<AnalysisSessionResponse[]>('/api/v1/analysis/');
+    console.log('API Response:', response);
     
     // 캐시 업데이트
     this.analysisCache = {

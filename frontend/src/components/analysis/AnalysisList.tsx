@@ -39,13 +39,17 @@ const AnalysisList: React.FC<AnalysisListProps> = ({ onSelectAnalysis }) => {
     if (showLoader) setIsLoading(true);
     
     try {
+      console.log('Fetching analyses...');
       const data = await AnalysisService.getAnalysisList(showLoader);
+      console.log('Received data:', data);
+      
       // 최신 데이터가 먼저 오도록 정렬
       const sortedData = data.sort((a, b) => 
         new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
       );
       setAnalyses(sortedData);
     } catch (error: any) {
+      console.error('Error fetching analyses:', error);
       // 에러가 발생해도 기존 데이터를 유지
       if (analyses.length === 0) {
         toast.error(error.response?.data?.error?.message || '분석 목록을 불러오는데 실패했습니다');
