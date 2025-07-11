@@ -2,8 +2,11 @@ from member.domain.repository import IMemberRepository
 from sqlmodel import Session, select
 from member.domain.member import Member as MemberVO
 from member.infra.db_models.member import Member
+from analysis.domain.analysis import Analysis as AnalysisVO
+from analysis.infra.db_models.analysis import Analysis
 from utils.db_utils import row_to_dict
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 class MemberRepository(IMemberRepository):
     def __init__(self, session: Session):
@@ -31,9 +34,7 @@ class MemberRepository(IMemberRepository):
 
         self.session.add(new_member)
         self.session.flush()
-        self.session.refresh(new_member)
 
-        member.id = new_member.id
         return member
 
 
@@ -64,3 +65,20 @@ class MemberRepository(IMemberRepository):
             return None
         
         return MemberVO(**row_to_dict(member))
+    
+    def find_analyses_by_member(self, member_id: str) -> list[AnalysisVO]:
+        # selectinload를 사용하여 N+1 문제 방지
+        # Member와 함께 analyses를 한 번의 추가 쿼리로 로드
+        query = (
+            select(Member)
+            .options(selectinload(Member.analyses))
+            .where(Member.id == member_id)
+        )
+        
+        member = self.session.exec(query).first()
+        
+        if not member:
+            return []
+        
+        # Member의 analyses를 AnalysisVO로 변환
+        return [AnalysisVO(**row_to_dict(analysis)) for analysis in member.analyses]

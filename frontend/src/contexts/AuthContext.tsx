@@ -7,7 +7,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refetchUser: () => Promise<void>;
 }
 
@@ -33,16 +33,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchUser = async () => {
     try {
+      // First try to use existing access token
       if (AuthService.isAuthenticated()) {
         const userData = await AuthService.getCurrentUser();
         console.log('User data from API:', userData); // 디버깅용
         setUser(userData);
+      } else {
+        // If no access token, try to refresh using cookie
+        const newToken = await AuthService.refreshToken();
+        if (newToken) {
+          const userData = await AuthService.getCurrentUser();
+          console.log('User data from API after refresh:', userData);
+          setUser(userData);
+        }
       }
     } catch (error: any) {
       console.error('Failed to fetch user:', error);
       // 401 에러일 때만 로그아웃 처리
       if (error.response?.status === 401) {
-        AuthService.logout();
+        // Try to refresh token one more time
+        try {
+          const newToken = await AuthService.refreshToken();
+          if (newToken) {
+            const userData = await AuthService.getCurrentUser();
+            setUser(userData);
+            return;
+          }
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+        }
+        
+        // If refresh also failed, logout
+        await AuthService.logout();
         setUser(null);
       }
     } finally {
@@ -59,8 +81,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    AuthService.logout();
+  const logout = async () => {
+    await AuthService.logout();
     setUser(null);
   };
 

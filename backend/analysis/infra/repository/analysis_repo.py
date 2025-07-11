@@ -47,9 +47,7 @@ class AnalysisRepository(IAnalysisRepository):
             
             self.session.add(new_analysis)
             self.session.flush()
-            self.session.refresh(new_analysis)
             
-            analysis.id = new_analysis.id
             return analysis
         except Exception as e:
             logger.error(f"❌ 분석 저장 실패: {str(e)}")
@@ -71,7 +69,7 @@ class AnalysisRepository(IAnalysisRepository):
             
             self.session.add(analysis)
             self.session.flush()
-            self.session.refresh(analysis)
+            
 
             return AnalysisVO(**row_to_dict(analysis))
         except Exception as e:

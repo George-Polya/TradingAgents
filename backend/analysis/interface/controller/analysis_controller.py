@@ -121,16 +121,9 @@ async def websocket_endpoint(
     import logging
     logger = logging.getLogger(__name__)
     
-    # Read cookie from WebSocket request headers
+    # Get token from query parameter
     try:
-        cookie_header = websocket.headers.get("cookie", "")
-        access_token = None
-        
-        # Parse cookies
-        for cookie in cookie_header.split("; "):
-            if cookie.startswith("access_token="):
-                access_token = cookie.split("=", 1)[1]
-                break
+        access_token = websocket.query_params.get("token")
         
         if not access_token:
             await websocket.close(code=1008, reason="Unauthorized")

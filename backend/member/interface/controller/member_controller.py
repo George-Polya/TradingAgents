@@ -5,11 +5,22 @@ from typing import Annotated
 from utils.containers import Container
 from dependency_injector.wiring import inject, Provide
 from fastapi.security import OAuth2PasswordRequestForm
-from utils.auth import get_current_member, CurrentMember, get_admin_member, verify_refresh_token, create_access_token, get_current_member_cookie
+from utils.auth import get_current_member, CurrentMember, get_admin_member, verify_refresh_token, create_access_token
 from analysis.interface.dto import AnalysisSessionResponse
 from analysis.application.analysis_service import AnalysisService
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/members", tags=["members"])
+
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    member: MemberResponse
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=MemberResponse)
 @inject
@@ -26,7 +37,7 @@ async def create_user(
 
     return created_member
 
-@router.post("/login")
+@router.post("/login", response_model=LoginResponse)
 @inject
 def login(
     response: Response,
@@ -38,17 +49,7 @@ def login(
         password=form_data.password
     )
     
-    # Set access token as HttpOnly cookie
-    response.set_cookie(
-        key="access_token",
-        value=login_result["access_token"],
-        httponly=True,
-        samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
-        max_age=60 * 15  # 15 minutes
-    )
-    
-    # Set refresh token as HttpOnly cookie
+    # Set refresh token as HttpOnly cookie for security
     response.set_cookie(
         key="refresh_token",
         value=login_result["refresh_token"],
@@ -57,10 +58,12 @@ def login(
         secure=False,  # Set to True in production with HTTPS
         max_age=60 * 60 * 24 * 7  # 7 days
     )
-
-    return {
-        "message": "Login successful",
-        "member": MemberResponse(
+    
+    return LoginResponse(
+        access_token=login_result["access_token"],
+        refresh_token=login_result["refresh_token"],
+        token_type="bearer",
+        member=MemberResponse(
             id=login_result["member"].id,
             name=login_result["member"].name,
             email=login_result["member"].email,
@@ -68,12 +71,12 @@ def login(
             created_at=login_result["member"].created_at,
             updated_at=login_result["member"].updated_at
         )
-    }
+    )
 
 @router.get("/me", response_model=MemberResponse)
 @inject
 def get_current_user_info(
-    current_user: CurrentMember = Depends(get_current_member_cookie),
+    current_user: CurrentMember = Depends(get_current_member),
     member_service: MemberService = Depends(Provide[Container.member_service])
 ):
     """
@@ -85,15 +88,15 @@ def get_current_user_info(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
     return member
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=RefreshResponse)
 @inject
 def refresh_token(
     request: Request,
-    response: Response,
     member_service: MemberService = Depends(Provide[Container.member_service])
 ):
     """
     리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급합니다.
+    쿠키에서 refresh token을 읽어 처리합니다.
     """
     # Get refresh token from cookie
     refresh_token = request.cookies.get("refresh_token")
@@ -124,17 +127,10 @@ def refresh_token(
             role=member.role
         )
         
-        # Set new access token as cookie
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            samesite="lax",
-            secure=False,  # Set to True in production
-            max_age=60 * 15  # 15 minutes
+        return RefreshResponse(
+            access_token=access_token,
+            token_type="bearer"
         )
-        
-        return {"message": "Token refreshed successfully"}
         
     except HTTPException:
         raise
@@ -149,7 +145,7 @@ def refresh_token(
 def logout(
     request: Request,
     response: Response,
-    current_member: CurrentMember = Depends(get_current_member_cookie),
+    current_member: CurrentMember = Depends(get_current_member),
     member_service: MemberService = Depends(Provide[Container.member_service])
 ):
     """
@@ -162,8 +158,7 @@ def logout(
     if refresh_token:
         member_service.refresh_token_repo.revoke_token(refresh_token)
     
-    # Clear cookies
-    response.delete_cookie("access_token")
+    # Delete refresh token cookie
     response.delete_cookie("refresh_token")
     
     return {"message": "Logout successful"}

@@ -1,4 +1,5 @@
 import api from './api';
+import { AuthService } from './authService';
 import { 
   TradingAnalysisRequest, 
   AnalysisSessionResponse, 
@@ -52,7 +53,7 @@ export class AnalysisService {
   }
 
   static createWebSocketConnection(onMessage: (data: any) => void): WebSocket {
-    const token = localStorage.getItem('access_token');
+    const token = AuthService.getAccessToken();
     const wsUrl = `${process.env.REACT_APP_WS_URL || 'ws://localhost:8000'}/api/v1/analysis/ws`;
     
     const ws = new WebSocket(`${wsUrl}?token=${token}`);

@@ -107,10 +107,10 @@ class MemberService:
             "member": member
         }
 
-    def get_analysis_sessions_by_member(
+    def get_analyses_by_member(
         self,
         member_id: str
     )->list[AnalysisVO]:
-        analysis_sessions = self.member_repo.find_analysis_sessions_by_member(member_id)
+        analysis_sessions = self.member_repo.find_analyses_by_member(member_id)
         return analysis_sessions
         

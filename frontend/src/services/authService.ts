@@ -1,4 +1,5 @@
 import api from './api';
+import tokenManager from './tokenManager';
 import { CreateUserBody, LoginRequest, LoginResponse, Member } from '../types';
 
 export class AuthService {
@@ -18,8 +19,8 @@ export class AuthService {
       },
     });
     
-    // Store token in localStorage
-    localStorage.setItem('access_token', response.data.access_token);
+    // Store tokens in memory
+    tokenManager.setTokens(response.data.access_token, response.data.refresh_token);
     
     return response.data;
   }
@@ -29,11 +30,44 @@ export class AuthService {
     return response.data;
   }
 
-  static logout(): void {
-    localStorage.removeItem('access_token');
+  static async logout(): Promise<void> {
+    try {
+      // Logout will use the refresh token from cookie
+      await api.post('/api/v1/members/logout', {});
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    tokenManager.clearTokens();
+  }
+
+  static async refreshToken(): Promise<string | null> {
+    try {
+      // Refresh token using cookie
+      const response = await api.post<{access_token: string, token_type: string}>('/api/v1/members/refresh', {});
+      
+      const newAccessToken = response.data.access_token;
+      // Update access token in memory
+      const currentRefreshToken = tokenManager.getRefreshToken() || 'cookie-based';
+      tokenManager.setTokens(newAccessToken, currentRefreshToken);
+      
+      return newAccessToken;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      tokenManager.clearTokens();
+      return null;
+    }
   }
 
   static isAuthenticated(): boolean {
-    return !!localStorage.getItem('access_token');
+    return tokenManager.isAuthenticated();
+  }
+
+  static getAccessToken(): string | null {
+    return tokenManager.getAccessToken();
+  }
+
+  static getRefreshToken(): string | null {
+    return tokenManager.getRefreshToken();
   }
 }

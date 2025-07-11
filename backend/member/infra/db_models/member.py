@@ -21,4 +21,10 @@ class Member(SQLModel, table=True):
     role : Role = Field(default=Role.USER, nullable=False)
 
     # Relationship 설정 - forward reference 사용
-    analyses: list["Analysis"] = Relationship(back_populates="member")
+    # lazy="select" (기본값): 필요할 때마다 별도 쿼리로 로드 (N+1 문제 발생 가능)
+    # lazy="selectin": IN 절을 사용하여 한 번의 추가 쿼리로 모든 관련 객체 로드
+    # lazy="joined": JOIN을 사용하여 한 번의 쿼리로 로드
+    analyses: list["Analysis"] = Relationship(
+        back_populates="member",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )

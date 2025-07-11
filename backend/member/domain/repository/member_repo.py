@@ -20,5 +20,5 @@ class IMemberRepository(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def find_analysis_sessions_by_member(self, member_id: str) -> list[AnalysisVO]:
+    def find_analyses_by_member(self, member_id: str) -> list[AnalysisVO]:
         raise NotImplementedError()

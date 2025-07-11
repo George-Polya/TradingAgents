@@ -57,7 +57,7 @@ def create_db_and_tables():
     try:
         # 개발 환경에서만 테이블 자동 생성
         if not settings.is_production:
-            
+            # SQLModel.metadata.drop_all(engine)
             SQLModel.metadata.create_all(engine)
             logger.info("데이터베이스 테이블 생성 완료")
         else:
