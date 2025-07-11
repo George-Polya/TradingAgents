@@ -146,6 +146,13 @@ class AnalysisService:
             self.analysis_repo.update(completed_analysis)
             self.session.commit()
             
+            # Send WebSocket notification for analysis completion
+            await self.websocket_manager.send_analysis_update(
+                analysis_id=analysis_id,
+                update_type="status_changed",
+                data={"status": "completed", "message": "Analysis completed successfully"}
+            )
+            
             
         except Exception as e:
             logger.error(f"🔴 분석 실패 - Analysis ID: {analysis_id}, 오류: {str(e)}")
@@ -160,6 +167,13 @@ class AnalysisService:
 
             self.analysis_repo.update(updates)
             self.session.commit()
+            
+            # Send WebSocket notification for analysis failure
+            await self.websocket_manager.send_analysis_update(
+                analysis_id=analysis_id,
+                update_type="status_changed",
+                data={"status": "failed", "message": f"Analysis failed: {str(e)}"}
+            )
 
 
     def _create_config(self, analysis: AnalysisVO) -> dict:
@@ -292,6 +306,30 @@ class AnalysisService:
             updates_vo = AnalysisVO(**updates)
             self.analysis_repo.update(updates_vo)
             self.session.commit()
+            
+            # Send WebSocket notification for progress update
+            current_report = None
+            if "market_report" in updates:
+                current_report = "market_report"
+            elif "sentiment_report" in updates:
+                current_report = "sentiment_report"
+            elif "news_report" in updates:
+                current_report = "news_report"
+            elif "fundamentals_report" in updates:
+                current_report = "fundamentals_report"
+            elif "trader_investment_plan" in updates:
+                current_report = "trader_investment_plan"
+            elif "final_trade_decision" in updates:
+                current_report = "final_trade_decision"
+            
+            await self.websocket_manager.send_analysis_update(
+                analysis_id=analysis_id,
+                update_type="progress_update",
+                data={
+                    "current_report_section": current_report,
+                    "message": f"Updated {current_report}" if current_report else "Processing..."
+                }
+            )
         else:
             logger.info("❌ 업데이트할 데이터가 없음")
 

@@ -108,7 +108,7 @@ class TestAnalysisController:
         assert response.status_code == 200
         response_data = response.json()
         assert len(response_data) == 1
-        assert response_data[0]["id"] == self.test_analysis_vo.id
+        assert response_data[0]["id"] == self.test_analysis_vo.id 
         assert response_data[0]["ticker"] == self.test_analysis_vo.ticker
 
     @patch('analysis.interface.controller.analysis_controller.get_current_member')

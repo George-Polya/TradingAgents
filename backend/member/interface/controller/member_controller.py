@@ -1,11 +1,11 @@
-from fastapi import APIRouter, status, Depends,HTTPException
+from fastapi import APIRouter, status, Depends, HTTPException, Response, Request
 from member.interface.dto import CreateUserBody, MemberResponse
 from member.application.member_service import MemberService
 from typing import Annotated
 from utils.containers import Container
 from dependency_injector.wiring import inject, Provide
 from fastapi.security import OAuth2PasswordRequestForm
-from utils.auth import get_current_member, CurrentMember, get_admin_member
+from utils.auth import get_current_member, CurrentMember, get_admin_member, verify_refresh_token, create_access_token, get_current_member_cookie
 from analysis.interface.dto import AnalysisSessionResponse
 from analysis.application.analysis_service import AnalysisService
 
@@ -29,23 +29,51 @@ async def create_user(
 @router.post("/login")
 @inject
 def login(
+    response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     member_service: MemberService = Depends(Provide[Container.member_service])
 ):
-    access_token = member_service.login(
+    login_result = member_service.login(
         email=form_data.username,
         password=form_data.password
     )
+    
+    # Set access token as HttpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=login_result["access_token"],
+        httponly=True,
+        samesite="lax",
+        secure=False,  # Set to True in production with HTTPS
+        max_age=60 * 15  # 15 minutes
+    )
+    
+    # Set refresh token as HttpOnly cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=login_result["refresh_token"],
+        httponly=True,
+        samesite="lax",
+        secure=False,  # Set to True in production with HTTPS
+        max_age=60 * 60 * 24 * 7  # 7 days
+    )
 
     return {
-        "access_token" : access_token,
-        "token_type" : "Bearer"
+        "message": "Login successful",
+        "member": MemberResponse(
+            id=login_result["member"].id,
+            name=login_result["member"].name,
+            email=login_result["member"].email,
+            role=login_result["member"].role,
+            created_at=login_result["member"].created_at,
+            updated_at=login_result["member"].updated_at
+        )
     }
 
 @router.get("/me", response_model=MemberResponse)
 @inject
 def get_current_user_info(
-    current_user: CurrentMember = Depends(get_current_member),
+    current_user: CurrentMember = Depends(get_current_member_cookie),
     member_service: MemberService = Depends(Provide[Container.member_service])
 ):
     """
@@ -57,16 +85,86 @@ def get_current_user_info(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
     return member
 
-@router.get("/{member_id}", response_model=MemberResponse)
+@router.post("/refresh")
 @inject
-def get_member(
-    member_id: str,
-    current_member: Annotated[CurrentMember | None, Depends(get_current_member)] = None,
-    member_service: Annotated[MemberService | None, Depends(Provide[Container.member_service])] = None
+def refresh_token(
+    request: Request,
+    response: Response,
+    member_service: MemberService = Depends(Provide[Container.member_service])
 ):
+    """
+    리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급합니다.
+    """
+    # Get refresh token from cookie
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found"
+        )
+    
+    # Verify refresh token
+    try:
+        payload = verify_refresh_token(refresh_token)
+        member_id = payload.get("member_id")
+        
+        # Check if token is valid in database
+        if not member_service.refresh_token_repo.is_token_valid(refresh_token):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+        
+        # Get member info
+        member = member_service.get_member(member_id)
+        
+        # Create new access token
+        access_token = create_access_token(
+            payload={"member_id": member.id, "role": member.role},
+            role=member.role
+        )
+        
+        # Set new access token as cookie
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            samesite="lax",
+            secure=False,  # Set to True in production
+            max_age=60 * 15  # 15 minutes
+        )
+        
+        return {"message": "Token refreshed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token"
+        )
 
-    member = member_service.get_member(member_id)
-    if not member:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
-    return member
+@router.post("/logout")
+@inject
+def logout(
+    request: Request,
+    response: Response,
+    current_member: CurrentMember = Depends(get_current_member_cookie),
+    member_service: MemberService = Depends(Provide[Container.member_service])
+):
+    """
+    로그아웃 - 리프레시 토큰을 무효화하고 쿠키를 삭제합니다.
+    """
+    # Get refresh token from cookie
+    refresh_token = request.cookies.get("refresh_token")
+    
+    # Revoke refresh token in database
+    if refresh_token:
+        member_service.refresh_token_repo.revoke_token(refresh_token)
+    
+    # Clear cookies
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+    
+    return {"message": "Logout successful"}
 

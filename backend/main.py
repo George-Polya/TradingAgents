@@ -26,9 +26,18 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 FastAPI 애플리케이션 시작")
     create_db_and_tables()
     logger.info("📊 데이터베이스 초기화 완료")
+    
+    # WebSocket manager background tasks 시작
+    websocket_manager = app.container.websocket_manager()
+    await websocket_manager.start_background_tasks()
+    logger.info("🔌 WebSocket 보안 태스크 시작")
+    
     yield
+    
     # 종료 시
     logger.info("🔄 애플리케이션 종료")
+    await websocket_manager.stop_background_tasks()
+    logger.info("🔌 WebSocket 보안 태스크 종료")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

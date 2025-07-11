@@ -60,8 +60,21 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Get database URL from environment variables
+    db_user = os.environ.get("DB_USER", "root")
+    db_password = os.environ.get("DB_PASSWORD", "")
+    db_host = os.environ.get("DB_HOST", "localhost")
+    db_port = os.environ.get("DB_PORT", "3306")
+    db_name = os.environ.get("DB_NAME", "test")
+    
+    database_url = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    
+    # Override the URL from alembic.ini with environment variable
+    configuration = config.get_section(config.config_ini_section)
+    configuration['sqlalchemy.url'] = database_url
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

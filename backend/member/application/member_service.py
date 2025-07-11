@@ -1,11 +1,12 @@
 from sqlmodel import Session
 from utils.crypto import Crypto
 from member.domain.repository.member_repo import IMemberRepository
+from member.domain.repository.refresh_token_repo import IRefreshTokenRepository
 from utils.auth import Role
 from member.domain.member import Member as MemberVO
 from fastapi import HTTPException, status
 from datetime import datetime
-from utils.auth import create_access_token
+from utils.auth import create_access_token, create_refresh_token
 from ulid import ULID
 from analysis.domain.analysis import Analysis as AnalysisVO
 
@@ -13,11 +14,13 @@ class MemberService:
     def __init__(
         self,
         member_repo: IMemberRepository,
+        refresh_token_repo: IRefreshTokenRepository,
         crypto: Crypto,
         session: Session,
         ulid: ULID
     ):
         self.member_repo = member_repo
+        self.refresh_token_repo = refresh_token_repo
         self.crypto = crypto
         self.session = session
         self.ulid = ulid
@@ -81,12 +84,28 @@ class MemberService:
         if not self.crypto.verify(password, member.password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+        # Create access token
         access_token = create_access_token(
             payload={"member_id": member.id, "role": member.role},
             role=member.role,
         )
-
-        return access_token
+        
+        # Create refresh token
+        refresh_token, expires_at = create_refresh_token(
+            payload={"member_id": member.id}
+        )
+        
+        # Revoke all existing refresh tokens for this member
+        self.refresh_token_repo.revoke_all_member_tokens(member.id)
+        
+        # Save new refresh token
+        self.refresh_token_repo.save(member.id, refresh_token, expires_at)
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "member": member
+        }
 
     def get_analysis_sessions_by_member(
         self,

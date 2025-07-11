@@ -5,7 +5,7 @@ from analysis.interface.dto import (
     TradingAnalysisRequest,
     AnalysisResultResponse
 )
-from utils.auth import get_current_member, CurrentMember
+from utils.auth import get_current_member, CurrentMember, get_current_member_websocket
 from dependency_injector.wiring import inject, Provide
 from analysis.application.analysis_service import AnalysisService
 from utils.containers import Container
@@ -113,25 +113,79 @@ def get_analysis_status(
 @inject
 async def websocket_endpoint(
     websocket: WebSocket,
-    current_member: Annotated[CurrentMember, Depends(get_current_member)],
-    websocket_manager: Annotated[WebSocketManager, Depends(Provide[Container.websocket_manager])]
+    websocket_manager: Annotated[WebSocketManager, Depends(Provide[Container.websocket_manager])] = None
 ):
     """
-    WebSocket endpoint for real-time analysis updates
+    WebSocket endpoint for real-time analysis updates with enhanced security
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Read cookie from WebSocket request headers
     try:
-        # Connect the websocket
-        await websocket_manager.connect(websocket, current_member.id)
+        cookie_header = websocket.headers.get("cookie", "")
+        access_token = None
+        
+        # Parse cookies
+        for cookie in cookie_header.split("; "):
+            if cookie.startswith("access_token="):
+                access_token = cookie.split("=", 1)[1]
+                break
+        
+        if not access_token:
+            await websocket.close(code=1008, reason="Unauthorized")
+            return
+            
+        current_member = get_current_member_websocket(access_token)
+    except Exception as e:
+        logger.error(f"WebSocket authentication failed: {e}")
+        await websocket.close(code=1008, reason="Authentication failed")
+        return
+    
+    try:
+        # Connect the websocket with security checks
+        connected = await websocket_manager.connect(websocket, current_member.id)
+        if not connected:
+            return
         
         try:
             # Keep connection alive
             while True:
-                # Wait for messages from client (like ping/pong)
+                # Wait for messages from client
                 data = await websocket.receive_text()
-                # Echo back for heartbeat
-                if data == "ping":
-                    await websocket.send_text("pong")
+                
+                try:
+                    # Handle message with validation and rate limiting
+                    message = await websocket_manager.handle_message(websocket, current_member.id, data)
+                    
+                    # Process different message types
+                    if message.get("type") == "ping":
+                        await websocket.send_json({"type": "pong", "timestamp": message.get("timestamp")})
+                    elif message.get("type") == "heartbeat":
+                        # Heartbeat already handled in handle_message
+                        pass
+                    else:
+                        # Handle other message types if needed
+                        logger.debug(f"Received message: {message.get('type')} from {current_member.id}")
+                        
+                except ValueError as e:
+                    # Send error message to client
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e),
+                        "code": "VALIDATION_ERROR"
+                    })
+                    
+                    # Close connection for severe violations
+                    if "Rate limit exceeded" in str(e):
+                        await websocket.close(code=1008, reason="Rate limit exceeded")
+                        break
+                        
         except WebSocketDisconnect:
-            websocket_manager.disconnect(websocket, current_member.id)
+            logger.info(f"WebSocket disconnected for member {current_member.id}")
+        finally:
+            await websocket_manager.disconnect(websocket, current_member.id)
+            
     except Exception as e:
-        await websocket.close(code=1011, reason=str(e))
+        logger.error(f"WebSocket error for member {current_member.id}: {e}")
+        await websocket.close(code=1011, reason="Internal server error")
