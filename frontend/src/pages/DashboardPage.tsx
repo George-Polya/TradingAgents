@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/common/Layout';
-import AnalysisForm from '../components/analysis/AnalysisForm';
-import AnalysisList from '../components/analysis/AnalysisList';
-import AnalysisResult from '../components/analysis/AnalysisResult';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { AnalysisProgressUpdate } from '../types';
 import toast from 'react-hot-toast';
 
-type ViewMode = 'list' | 'form' | 'result';
-
 const DashboardPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [progressUpdates, setProgressUpdates] = useState<Record<string, AnalysisProgressUpdate>>({});
 
   const handleProgressUpdate = (update: AnalysisProgressUpdate) => {
@@ -26,45 +22,11 @@ const DashboardPage: React.FC = () => {
 
   useWebSocket({ onProgressUpdate: handleProgressUpdate });
 
-  const handleAnalysisSuccess = (analysisId: string) => {
-    setSelectedAnalysisId(analysisId);
-    setViewMode('result');
-  };
-
-  const handleSelectAnalysis = (analysisId: string) => {
-    setSelectedAnalysisId(analysisId);
-    setViewMode('result');
-  };
-
-  const handleBackToList = () => {
-    setViewMode('list');
-    setSelectedAnalysisId(null);
-  };
-
-  const renderContent = () => {
-    switch (viewMode) {
-      case 'form':
-        return (
-          <AnalysisForm
-            onSuccess={handleAnalysisSuccess}
-          />
-        );
-      case 'result':
-        return selectedAnalysisId ? (
-          <AnalysisResult
-            analysisId={selectedAnalysisId}
-            onBack={handleBackToList}
-          />
-        ) : (
-          <ErrorMessage>선택된 분석이 없습니다.</ErrorMessage>
-        );
-      default:
-        return (
-          <AnalysisList
-            onSelectAnalysis={handleSelectAnalysis}
-          />
-        );
-    }
+  const getCurrentView = () => {
+    const path = location.pathname;
+    if (path.includes('/dashboard/new')) return 'form';
+    if (path.includes('/dashboard/analysis/')) return 'result';
+    return 'list';
   };
 
   return (
@@ -74,14 +36,14 @@ const DashboardPage: React.FC = () => {
           <Title>Trading Agents 대시보드</Title>
           <ButtonGroup>
             <NavButton
-              active={viewMode === 'list'}
-              onClick={() => setViewMode('list')}
+              active={getCurrentView() === 'list'}
+              onClick={() => navigate('/dashboard')}
             >
               분석 목록
             </NavButton>
             <NavButton
-              active={viewMode === 'form'}
-              onClick={() => setViewMode('form')}
+              active={getCurrentView() === 'form'}
+              onClick={() => navigate('/dashboard/new')}
             >
               새 분석
             </NavButton>
@@ -89,7 +51,7 @@ const DashboardPage: React.FC = () => {
         </Header>
 
         <Content>
-          {renderContent()}
+          <Outlet />
         </Content>
 
         {Object.keys(progressUpdates).length > 0 && (

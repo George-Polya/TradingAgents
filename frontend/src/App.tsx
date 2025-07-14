@@ -6,6 +6,9 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import DashboardListPage from './pages/DashboardListPage';
+import DashboardNewPage from './pages/DashboardNewPage';
+import DashboardAnalysisPage from './pages/DashboardAnalysisPage';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -32,7 +35,11 @@ function App() {
                     <DashboardPage />
                   </ProtectedRoute>
                 }
-              />
+              >
+                <Route index element={<DashboardListPage />} />
+                <Route path="new" element={<DashboardNewPage />} />
+                <Route path="analysis/:id" element={<DashboardAnalysisPage />} />
+              </Route>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
             <Toaster
