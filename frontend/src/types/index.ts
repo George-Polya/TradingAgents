@@ -71,7 +71,6 @@ export interface AnalysisResultResponse {
   analysis_date: string;
   status: AnalysisStatus;
   market_report: string | null;
-  sentiment_report: string | null;
   news_report: string | null;
   fundamentals_report: string | null;
   investment_debate_state: any | null;

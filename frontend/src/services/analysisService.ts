@@ -71,7 +71,7 @@ export class AnalysisService {
       // Send ping to keep connection alive
       const pingInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send('ping');
+          ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
         } else {
           clearInterval(pingInterval);
         }

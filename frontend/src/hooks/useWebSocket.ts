@@ -12,10 +12,20 @@ export const useWebSocket = ({ onProgressUpdate }: UseWebSocketProps) => {
   const wsRef = useRef<WebSocket | null>(null);
 
   const connect = useCallback(() => {
+    // 이미 연결되어 있거나 연결 중이면 중복 연결 방지
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || 
+                         wsRef.current.readyState === WebSocket.OPEN)) {
+      console.log('WebSocket already connected or connecting');
+      return;
+    }
+
     try {
       const ws = AnalysisService.createWebSocketConnection((data) => {
         if (data.type === 'progress_update') {
           onProgressUpdate?.(data.payload);
+        } else if (data.type === 'error') {
+          console.error('WebSocket error message:', data);
+          setConnectionError(data.message || 'WebSocket error');
         }
       });
 
@@ -25,9 +35,18 @@ export const useWebSocket = ({ onProgressUpdate }: UseWebSocketProps) => {
         console.log('WebSocket connected');
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         setIsConnected(false);
-        console.log('WebSocket disconnected');
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        // 비정상적인 종료인 경우 재연결 시도
+        if (event.code !== 1000 && event.code !== 1001) {
+          console.log('Abnormal close, will retry connection in 3 seconds');
+          setTimeout(() => {
+            if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+              connect();
+            }
+          }, 3000);
+        }
       };
 
       ws.onerror = (error) => {
@@ -44,19 +63,26 @@ export const useWebSocket = ({ onProgressUpdate }: UseWebSocketProps) => {
 
   const disconnect = () => {
     if (wsRef.current) {
-      wsRef.current.close();
+      // 정상 종료 코드 사용
+      wsRef.current.close(1000, 'Normal closure');
       wsRef.current = null;
       setIsConnected(false);
     }
   };
 
   useEffect(() => {
-    connect();
+    // React strict mode에서 중복 실행 방지
+    let mounted = true;
+    
+    if (mounted) {
+      connect();
+    }
 
     return () => {
+      mounted = false;
       disconnect();
     };
-  }, [connect]);
+  }, []); // connect 의존성 제거하여 재생성 방지
 
   return {
     isConnected,

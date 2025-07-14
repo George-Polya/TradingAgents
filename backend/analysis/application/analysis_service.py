@@ -261,11 +261,6 @@ class AnalysisService:
         elif "market_report" in chunk:
             logger.info(f"⚠️ market_report 존재하지만 값이 비어있음: {repr(chunk['market_report'])}")
             
-        if "sentiment_report" in chunk and chunk["sentiment_report"]:
-            logger.info("✅ sentiment_report 업데이트")
-            updates["sentiment_report"] = chunk["sentiment_report"]
-        elif "sentiment_report" in chunk:
-            logger.info(f"⚠️ sentiment_report 존재하지만 값이 비어있음: {repr(chunk['sentiment_report'])}")
             
         if "news_report" in chunk and chunk["news_report"]:
             logger.info("✅ news_report 업데이트")

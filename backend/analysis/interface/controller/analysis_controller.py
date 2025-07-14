@@ -26,7 +26,6 @@ def get_analysis_list_for_member(
     현재 로그인한 사용자의 모든 분석 세션 목록을 조회합니다.
     """
     analyses = analysis_service.get_analysis_list(current_member.id)
-    logger.info(f"Analyses: {analyses}")
     return [
         AnalysisSessionResponse(
             id=analysis.id,
@@ -78,7 +77,6 @@ def get_analysis_result(
         analysis_date=analysis.analysis_date.isoformat() if hasattr(analysis.analysis_date, 'isoformat') else str(analysis.analysis_date),
         status=analysis.status,
         market_report=analysis.market_report,
-        sentiment_report=analysis.sentiment_report,
         news_report=analysis.news_report,
         fundamentals_report=analysis.fundamentals_report,
         investment_debate_state=analysis.investment_debate_state,
@@ -122,67 +120,68 @@ async def websocket_endpoint(
     """
     WebSocket endpoint for real-time analysis updates with enhanced security
     """
-    import logging
-    logger = logging.getLogger(__name__)
+    current_member = None
     
-    # Get token from query parameter
+    # Authenticate user
     try:
         access_token = websocket.query_params.get("token")
-        
         if not access_token:
             await websocket.close(code=1008, reason="Unauthorized")
             return
-            
         current_member = get_current_member_websocket(access_token)
     except Exception as e:
         logger.error(f"WebSocket authentication failed: {e}")
         await websocket.close(code=1008, reason="Authentication failed")
         return
     
+    # Connect websocket
+    connected = await websocket_manager.connect(websocket, current_member.id)
+    if not connected:
+        return
+    
+    # Message handling loop
     try:
-        # Connect the websocket with security checks
-        connected = await websocket_manager.connect(websocket, current_member.id)
-        if not connected:
-            return
-        
-        try:
-            # Keep connection alive
-            while True:
-                # Wait for messages from client
-                data = await websocket.receive_text()
-                
-                try:
-                    # Handle message with validation and rate limiting
-                    message = await websocket_manager.handle_message(websocket, current_member.id, data)
-                    
-                    # Process different message types
-                    if message.get("type") == "ping":
-                        await websocket.send_json({"type": "pong", "timestamp": message.get("timestamp")})
-                    elif message.get("type") == "heartbeat":
-                        # Heartbeat already handled in handle_message
-                        pass
-                    else:
-                        # Handle other message types if needed
-                        logger.debug(f"Received message: {message.get('type')} from {current_member.id}")
-                        
-                except ValueError as e:
-                    # Send error message to client
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": str(e),
-                        "code": "VALIDATION_ERROR"
-                    })
-                    
-                    # Close connection for severe violations
-                    if "Rate limit exceeded" in str(e):
-                        await websocket.close(code=1008, reason="Rate limit exceeded")
-                        break
-                        
-        except WebSocketDisconnect:
-            logger.info(f"WebSocket disconnected for member {current_member.id}")
-        finally:
-            await websocket_manager.disconnect(websocket, current_member.id)
-            
+        while True:
+            data = await websocket.receive_text()
+            await handle_websocket_message(websocket, websocket_manager, current_member.id, data)
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for member {current_member.id}")
     except Exception as e:
         logger.error(f"WebSocket error for member {current_member.id}: {e}")
         await websocket.close(code=1011, reason="Internal server error")
+    finally:
+        await websocket_manager.disconnect(websocket, current_member.id)
+
+
+async def handle_websocket_message(
+    websocket: WebSocket,
+    websocket_manager: WebSocketManager,
+    member_id: str,
+    data: str
+):
+    """Handle individual WebSocket messages"""
+    try:
+        # Validate and parse message
+        message = await websocket_manager.handle_message(websocket, member_id, data)
+        
+        # Process message types
+        if message.get("type") == "ping":
+            await websocket.send_json({"type": "pong", "timestamp": message.get("timestamp")})
+        elif message.get("type") == "heartbeat":
+            pass  # Already handled in handle_message
+        else:
+            logger.debug(f"Received message: {message.get('type')} from {member_id}")
+            
+    except ValueError as e:
+        await websocket.send_json({
+            "type": "error",
+            "message": str(e),
+            "code": "VALIDATION_ERROR"
+        })
+        
+        # Close connection for rate limit violations
+        if "Rate limit exceeded" in str(e):
+            await websocket.close(code=1008, reason="Rate limit exceeded")
+            raise WebSocketDisconnect()
+    except Exception as e:
+        logger.error(f"Unexpected error handling message: {e}", exc_info=True)

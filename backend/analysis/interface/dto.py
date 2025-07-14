@@ -41,7 +41,6 @@ class AnalysisResultResponse(BaseModel):
     analysis_date: str
     status: AnalysisStatus
     market_report: str | None = None
-    sentiment_report: str | None = None
     news_report: str | None = None
     fundamentals_report: str | None = None
     investment_debate_state: dict | None = None

@@ -34,7 +34,6 @@ class Analysis(SQLModel, table=True):
     
     # 개별 분석가 리포트들
     market_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="Market Analyst 리포트")
-    sentiment_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="Social Analyst 리포트")
     news_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="News Analyst 리포트")
     fundamentals_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="Fundamentals Analyst 리포트")
     

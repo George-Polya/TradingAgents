@@ -169,19 +169,6 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysisId, onBack }) =
           )}
         </ReportSection>
 
-        {/* 감정 분석 보고서 */}
-        <ReportSection>
-          <ReportTitle>감정 분석 보고서</ReportTitle>
-          {analysis.sentiment_report ? (
-            <ReportContent>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {analysis.sentiment_report}
-              </ReactMarkdown>
-            </ReportContent>
-          ) : (
-            <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
-          )}
-        </ReportSection>
 
         {/* 뉴스 분석 보고서 */}
         <ReportSection>

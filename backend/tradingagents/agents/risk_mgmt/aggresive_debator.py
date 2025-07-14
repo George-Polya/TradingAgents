@@ -12,7 +12,6 @@ def create_risky_debator(llm):
         current_neutral_response = risk_debate_state.get("current_neutral_response", "")
 
         market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
@@ -27,7 +26,6 @@ As the Risky Risk Analyst, your role is to actively champion high-reward, high-r
 Your task is to create a compelling case for the trader's decision by questioning and critiquing the conservative and neutral stances to demonstrate why your high-reward perspective offers the best path forward. Incorporate insights from the following sources into your arguments:
 
 Market Research Report: {market_research_report}
-Social Media Sentiment Report: {sentiment_report}
 Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_safe_response} Here are the last arguments from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
