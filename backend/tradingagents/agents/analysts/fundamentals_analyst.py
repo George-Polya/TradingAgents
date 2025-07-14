@@ -13,11 +13,12 @@ def create_fundamentals_analyst(llm, toolkit):
             tools = [toolkit.get_fundamentals]
         else:
             tools = [
-                toolkit.get_finnhub_company_insider_sentiment,
-                toolkit.get_finnhub_company_insider_transactions,
-                toolkit.get_simfin_balance_sheet,
-                toolkit.get_simfin_cashflow,
-                toolkit.get_simfin_income_stmt,
+                # toolkit.get_finnhub_company_insider_sentiment,  # Offline tool - commented out
+                # toolkit.get_finnhub_company_insider_transactions,  # Offline tool - commented out
+                # toolkit.get_simfin_balance_sheet,  # Offline tool - commented out
+                # toolkit.get_simfin_cashflow,  # Offline tool - commented out
+                # toolkit.get_simfin_income_stmt,  # Offline tool - commented out
+                toolkit.get_fundamentals,  # Use online version instead
             ]
 
         system_message = (

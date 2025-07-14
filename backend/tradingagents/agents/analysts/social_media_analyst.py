@@ -13,7 +13,8 @@ def create_social_media_analyst(llm, toolkit):
             tools = [toolkit.get_stock_news]
         else:
             tools = [
-                toolkit.get_reddit_stock_info,
+                # toolkit.get_reddit_stock_info,  # Offline tool - commented out
+                toolkit.get_stock_news,  # Use online version instead
             ]
 
         system_message = (

@@ -17,8 +17,10 @@ def create_market_analyst(llm, toolkit):
             ]
         else:
             tools = [
-                toolkit.get_YFin_data,
-                toolkit.get_stockstats_indicators_report,
+                # toolkit.get_YFin_data,  # Offline tool - commented out
+                # toolkit.get_stockstats_indicators_report,  # Offline tool - commented out
+                toolkit.get_YFin_data_online,  # Use online version instead
+                toolkit.get_stockstats_indicators_report_online,  # Use online version instead
             ]
 
         system_message = (

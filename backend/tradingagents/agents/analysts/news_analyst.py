@@ -12,9 +12,10 @@ def create_news_analyst(llm, toolkit):
             tools = [toolkit.get_global_news, toolkit.get_google_news]
         else:
             tools = [
-                toolkit.get_finnhub_news,
-                toolkit.get_reddit_news,
-                toolkit.get_google_news,
+                # toolkit.get_finnhub_news,  # Offline tool - commented out
+                # toolkit.get_reddit_news,  # Offline tool - commented out
+                toolkit.get_google_news,  # This is actually online (scrapes Google)
+                toolkit.get_global_news,  # Use online version for global news
             ]
 
         system_message = (

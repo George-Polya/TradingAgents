@@ -55,7 +55,7 @@ class AnalysisService:
             
         return analysis
 
-    def get_analysis_sessions_by_member(
+    def get_analyses_by_member(
         self,
         member_id: str
     ) -> list[AnalysisVO]:

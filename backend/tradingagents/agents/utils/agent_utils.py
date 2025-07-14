@@ -49,7 +49,6 @@ class Toolkit:
             self.update_config(config)
 
     @staticmethod
-    @tool
     def get_reddit_news(
         curr_date: Annotated[str, "Date you want to get news for in yyyy-mm-dd format"],
     ) -> str:
@@ -66,7 +65,6 @@ class Toolkit:
         return global_news_result
 
     @staticmethod
-    @tool
     def get_finnhub_news(
         ticker: Annotated[
             str,
@@ -98,7 +96,6 @@ class Toolkit:
         return finnhub_news_result
 
     @staticmethod
-    @tool
     def get_reddit_stock_info(
         ticker: Annotated[
             str,
@@ -120,7 +117,6 @@ class Toolkit:
         return stock_news_results
 
     @staticmethod
-    @tool
     def get_YFin_data(
         symbol: Annotated[str, "ticker symbol of the company"],
         start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -162,7 +158,6 @@ class Toolkit:
         return result_data
 
     @staticmethod
-    @tool
     def get_stockstats_indicators_report(
         symbol: Annotated[str, "ticker symbol of the company"],
         indicator: Annotated[
@@ -220,7 +215,6 @@ class Toolkit:
         return result_stockstats
 
     @staticmethod
-    @tool
     def get_finnhub_company_insider_sentiment(
         ticker: Annotated[str, "ticker symbol for the company"],
         curr_date: Annotated[
@@ -244,7 +238,6 @@ class Toolkit:
         return data_sentiment
 
     @staticmethod
-    @tool
     def get_finnhub_company_insider_transactions(
         ticker: Annotated[str, "ticker symbol"],
         curr_date: Annotated[
@@ -268,7 +261,6 @@ class Toolkit:
         return data_trans
 
     @staticmethod
-    @tool
     def get_simfin_balance_sheet(
         ticker: Annotated[str, "ticker symbol"],
         freq: Annotated[
@@ -292,7 +284,6 @@ class Toolkit:
         return data_balance_sheet
 
     @staticmethod
-    @tool
     def get_simfin_cashflow(
         ticker: Annotated[str, "ticker symbol"],
         freq: Annotated[
@@ -316,7 +307,6 @@ class Toolkit:
         return data_cashflow
 
     @staticmethod
-    @tool
     def get_simfin_income_stmt(
         ticker: Annotated[str, "ticker symbol"],
         freq: Annotated[
