@@ -31,7 +31,6 @@ class TestAnalysis:
         data = self.valid_analysis_data.copy()
         data.update({
             "market_report": "Market analysis report",
-            "sentiment_report": "Sentiment analysis report",
             "news_report": "News analysis report",
             "fundamentals_report": "Fundamentals analysis report",
             "investment_debate_state": {"rounds": 3, "decision": "buy"},
@@ -59,7 +58,6 @@ class TestAnalysis:
         assert analysis.deep_thinker == data["deep_thinker"]
         assert analysis.status == data["status"]
         assert analysis.market_report == data["market_report"]
-        assert analysis.sentiment_report == data["sentiment_report"]
         assert analysis.news_report == data["news_report"]
         assert analysis.fundamentals_report == data["fundamentals_report"]
         assert analysis.investment_debate_state == data["investment_debate_state"]
@@ -93,7 +91,6 @@ class TestAnalysis:
         assert analysis.deep_thinker == "gemini-2.5-flash-lite-preview-06-17"
         assert analysis.status == AnalysisStatus.PENDING
         assert analysis.market_report is None
-        assert analysis.sentiment_report is None
         assert analysis.news_report is None
         assert analysis.fundamentals_report is None
         assert analysis.investment_debate_state is None
@@ -247,7 +244,6 @@ class TestAnalysis:
         # Given
         reports = {
             "market_report": "Market is bullish",
-            "sentiment_report": "Positive sentiment",
             "news_report": "Good news coverage",
             "fundamentals_report": "Strong fundamentals"
         }
@@ -257,7 +253,6 @@ class TestAnalysis:
         
         # Then
         assert analysis.market_report == reports["market_report"]
-        assert analysis.sentiment_report == reports["sentiment_report"]
         assert analysis.news_report == reports["news_report"]
         assert analysis.fundamentals_report == reports["fundamentals_report"]
 

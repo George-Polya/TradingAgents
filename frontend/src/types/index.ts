@@ -12,7 +12,6 @@ export enum AnalysisStatus {
 
 export enum AnalystType {
   MARKET = "market",
-  SOCIAL = "social",
   NEWS = "news",
   FUNDAMENTALS = "fundamentals"
 }

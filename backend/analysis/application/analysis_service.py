@@ -38,7 +38,7 @@ class AnalysisService:
     ) -> list[AnalysisVO]:
         analyses = self.analysis_repo.find_by_member_id(member_id)
         if not analyses:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
+            return []
         return analyses
 
     def get_analysis_by_id(
@@ -306,8 +306,6 @@ class AnalysisService:
             current_report = None
             if "market_report" in updates:
                 current_report = "market_report"
-            elif "sentiment_report" in updates:
-                current_report = "sentiment_report"
             elif "news_report" in updates:
                 current_report = "news_report"
             elif "fundamentals_report" in updates:
@@ -333,13 +331,11 @@ class AnalysisService:
         report_parts = []
         
         # Analyst Team Reports
-        if any(final_state.get(section) for section in ["market_report", "sentiment_report", "news_report", "fundamentals_report"]):
+        if any(final_state.get(section) for section in ["market_report", "news_report", "fundamentals_report"]):
             report_parts.append("## Analyst Team Reports")
             
             if final_state.get("market_report"):
                 report_parts.append(f"### Market Analysis\n{final_state['market_report']}")
-            if final_state.get("sentiment_report"):
-                report_parts.append(f"### Social Sentiment\n{final_state['sentiment_report']}")
             if final_state.get("news_report"):
                 report_parts.append(f"### News Analysis\n{final_state['news_report']}")
             if final_state.get("fundamentals_report"):

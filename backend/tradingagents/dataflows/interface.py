@@ -1,8 +1,9 @@
-from typing import Annotated, Dict, Tuple
+from typing import Annotated, Dict, Tuple, List
 from .reddit_utils import fetch_top_from_category
 from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
+from .google_news_provider import GoogleNewsProvider
 from .finnhub_utils import get_data_in_range
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
@@ -294,28 +295,73 @@ def get_simfin_income_statements(
     )
 
 
+# Create a singleton instance of the GoogleNewsProvider
+_google_news_provider = GoogleNewsProvider(
+    cache_ttl=3600,  # 1 hour cache
+    rate_limit=0.5,  # 0.5 requests per second
+    max_retries=3,
+    respect_robots=True
+)
+
+
 def get_google_news(
     query: Annotated[str, "Query to search with"],
     curr_date: Annotated[str, "Curr date in yyyy-mm-dd format"],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
-    query = query.replace(" ", "+")
-
+    """
+    Get Google News articles using the new GoogleNewsProvider.
+    
+    Args:
+        query: Search query
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to look back
+        
+    Returns:
+        Formatted string with news articles
+    """
     before, _ = parse_date_range(curr_date, look_back_days)
-
-    news_results = getNewsData(query, before, curr_date)
-
-    news_str = ""
-
-    for news in news_results:
-        news_str += (
-            f"### {news['title']} (source: {news['source']}) \n\n{news['snippet']}\n\n"
+    
+    try:
+        # Use the new provider
+        news_articles = _google_news_provider.search_news(
+            query=query,
+            start_date=before,
+            end_date=curr_date,
+            max_results=50,
+            use_cache=True
         )
-
-    if len(news_results) == 0:
-        return ""
-
-    return f"## {query} Google News, from {before} to {curr_date}:\n\n{news_str}"
+        
+        if not news_articles:
+            return ""
+        
+        news_str = ""
+        for article in news_articles:
+            news_str += (
+                f"### {article.title} (source: {article.source}) \n\n"
+                f"{article.snippet}\n\n"
+            )
+        
+        return f"## {query} Google News, from {before} to {curr_date}:\n\n{news_str}"
+        
+    except Exception as e:
+        # Fallback to old implementation if new provider fails
+        import logging
+        logging.error(f"GoogleNewsProvider failed: {e}. Falling back to old implementation.")
+        
+        query = query.replace(" ", "+")
+        news_results = getNewsData(query, before, curr_date)
+        
+        news_str = ""
+        for news in news_results:
+            news_str += (
+                f"### {news['title']} (source: {news['source']}) \n\n{news['snippet']}\n\n"
+            )
+        
+        if len(news_results) == 0:
+            return ""
+        
+        return f"## {query} Google News, from {before} to {curr_date}:\n\n{news_str}"
 
 
 def get_reddit_global_news(
@@ -734,4 +780,150 @@ def get_fundamentals(ticker, curr_date):
     search_provider = _search_factory.create_provider(config)
     query = f"Search for fundamental analysis data and financial metrics for {ticker} stock from the month before {curr_date} to the month of {curr_date}. Look for earnings reports, financial ratios like PE, PS, cash flow, revenue growth, analyst ratings, and any fundamental analysis discussions. Please present key metrics in a structured format."
     return search_provider.search(query)
+
+
+def get_company_google_news(
+    ticker: Annotated[str, "Company ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "Number of days to look back"] = 7,
+) -> str:
+    """
+    Get Google News specifically for a company ticker.
+    
+    Args:
+        ticker: Company ticker symbol
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to look back (default: 7)
+        
+    Returns:
+        Formatted string with company news articles
+    """
+    try:
+        # Use the specialized company news method
+        curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        news_articles = _google_news_provider.get_company_news(
+            ticker=ticker,
+            days_back=look_back_days,
+            max_results=30
+        )
+        
+        if not news_articles:
+            return ""
+        
+        news_str = ""
+        for article in news_articles:
+            news_str += (
+                f"### {article.title} (source: {article.source}) \n\n"
+                f"{article.snippet}\n\n"
+            )
+        
+        start_date = (curr_date_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
+        return f"## {ticker} Company News from Google News, from {start_date} to {curr_date}:\n\n{news_str}"
+        
+    except Exception as e:
+        # Fallback to regular search
+        import logging
+        logging.error(f"Company news search failed: {e}. Using regular search.")
+        return get_google_news(f"{ticker} stock company", curr_date, look_back_days)
+
+
+def get_market_sentiment_google_news(
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    sectors: Annotated[List[str], "List of sectors to analyze"] = None,
+    look_back_days: Annotated[int, "Number of days to look back"] = 1,
+) -> Dict[str, str]:
+    """
+    Get market sentiment news by sector from Google News.
+    
+    Args:
+        curr_date: Current date in yyyy-mm-dd format
+        sectors: List of sectors (defaults to major sectors)
+        look_back_days: Number of days to look back (default: 1)
+        
+    Returns:
+        Dictionary mapping sectors to formatted news strings
+    """
+    try:
+        # Use the specialized market sentiment method
+        sentiment_news = _google_news_provider.get_market_sentiment_news(
+            sectors=sectors,
+            days_back=look_back_days,
+            max_results=20
+        )
+        
+        result = {}
+        for sector, articles in sentiment_news.items():
+            if not articles:
+                result[sector] = ""
+                continue
+                
+            news_str = ""
+            for article in articles:
+                news_str += (
+                    f"### {article.title} (source: {article.source}) \n\n"
+                    f"{article.snippet}\n\n"
+                )
+            
+            curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+            start_date = (curr_date_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
+            result[sector] = f"## {sector.capitalize()} Sector News, from {start_date} to {curr_date}:\n\n{news_str}"
+        
+        return result
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Market sentiment search failed: {e}")
+        return {}
+
+
+def get_breaking_google_news(
+    topics: Annotated[List[str], "List of topics to search for breaking news"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    hours_back: Annotated[int, "Number of hours to look back"] = 4,
+) -> str:
+    """
+    Get breaking news for specific topics from Google News.
+    
+    Args:
+        topics: List of topics to search
+        curr_date: Current date in yyyy-mm-dd format  
+        hours_back: Number of hours to look back (default: 4)
+        
+    Returns:
+        Formatted string with breaking news articles
+    """
+    try:
+        # Use the specialized breaking news method
+        news_articles = _google_news_provider.get_breaking_news(
+            topics=topics,
+            hours_back=hours_back
+        )
+        
+        if not news_articles:
+            return ""
+        
+        news_str = ""
+        for article in news_articles:
+            news_str += (
+                f"### {article.title} (source: {article.source}) \n\n"
+                f"{article.snippet}\n\n"
+            )
+        
+        topics_str = ", ".join(topics)
+        return f"## Breaking News for {topics_str} (last {hours_back} hours):\n\n{news_str}"
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Breaking news search failed: {e}")
+        return ""
+
+
+def check_google_news_health() -> Dict[str, Any]:
+    """
+    Check the health status of the Google News provider.
+    
+    Returns:
+        Health status dictionary
+    """
+    return _google_news_provider.health_check()
     

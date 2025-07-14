@@ -31,6 +31,7 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysisId, onBack }) =
       if (!abortSignal?.aborted) {
         console.error('분석 결과 로드 에러:', error);
         if (error.response?.status === 404) {
+          // 404 에러는 분석이 없는 경우이므로 토스트 표시하지 않음
           setHasError(true);
           setAnalysis(null);
         } else if (error.response?.status !== 401) {

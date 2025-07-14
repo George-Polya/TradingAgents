@@ -117,7 +117,7 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
     defaultValues: {
       ticker: 'NVDA',
       analysis_date: new Date().toISOString().split('T')[0],
-      analysts: [AnalystType.MARKET, AnalystType.SOCIAL, AnalystType.NEWS, AnalystType.FUNDAMENTALS],
+      analysts: [AnalystType.MARKET, AnalystType.NEWS, AnalystType.FUNDAMENTALS],
       research_depth: 1,
       llm_provider: 'google',
       backend_url: 'https://generativelanguage.googleapis.com/v1',
@@ -200,7 +200,6 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
                 />
                 <CheckboxLabel htmlFor={analyst}>
                   {analyst === AnalystType.MARKET && '시장 분석가'}
-                  {analyst === AnalystType.SOCIAL && '소셜 분석가'}
                   {analyst === AnalystType.NEWS && '뉴스 분석가'}
                   {analyst === AnalystType.FUNDAMENTALS && '펀더멘털 분석가'}
                 </CheckboxLabel>

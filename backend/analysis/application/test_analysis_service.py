@@ -249,7 +249,6 @@ class TestAnalysisService:
         analysis_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
         chunk = {
             "market_report": "Market analysis report",
-            "sentiment_report": "Sentiment analysis report",
             "news_report": "",  # 빈 값
             "fundamentals_report": None  # None 값
         }
@@ -262,7 +261,6 @@ class TestAnalysisService:
         update_vo = self.mock_analysis_repo.update.call_args[0][0]
         assert update_vo.id == analysis_id
         assert update_vo.market_report == "Market analysis report"
-        assert update_vo.sentiment_report == "Sentiment analysis report"
         self.mock_session.commit.assert_called_once()
 
     @pytest.mark.asyncio
@@ -272,7 +270,6 @@ class TestAnalysisService:
         analysis_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
         chunk = {
             "market_report": "",
-            "sentiment_report": None,
             "other_data": "some value"  # 업데이트 대상이 아닌 데이터
         }
         
@@ -288,7 +285,6 @@ class TestAnalysisService:
         # Given
         final_state = {
             "market_report": "Market analysis content",
-            "sentiment_report": "Sentiment analysis content",
             "news_report": "News analysis content",
             "fundamentals_report": "Fundamentals analysis content",
             "investment_debate_state": {
@@ -306,7 +302,6 @@ class TestAnalysisService:
         # Then
         assert "## Analyst Team Reports" in result
         assert "### Market Analysis" in result
-        assert "### Social Sentiment" in result
         assert "### News Analysis" in result
         assert "### Fundamentals Analysis" in result
         assert "## Research Team Decision" in result
