@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = Field(default="development", description="Environment (development/staging/production)")
     DEBUG: bool = Field(default=True, description="Debug mode")
     
+    # 쿠키 보안 설정
+    COOKIE_SECURE: bool | None = Field(default=None, description="Use secure cookies (HTTPS only)")
+    COOKIE_SAMESITE: str = Field(default="strict", description="SameSite cookie attribute")
+    COOKIE_DOMAIN: str | None = Field(default=None, description="Cookie domain")
+    
     @field_validator('ENVIRONMENT')
     @classmethod
     def validate_environment(cls, v):
@@ -80,6 +85,13 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.ENVIRONMENT == "development"
+    
+    @property
+    def cookie_secure(self) -> bool:
+        """환경에 따라 쿠키 secure 설정을 자동으로 결정"""
+        if self.COOKIE_SECURE is not None:
+            return self.COOKIE_SECURE
+        return self.is_production
 
 @lru_cache 
 def get_settings():

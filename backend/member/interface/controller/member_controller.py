@@ -9,10 +9,12 @@ from utils.auth import get_current_member, CurrentMember, get_admin_member, veri
 from analysis.interface.dto import AnalysisSessionResponse
 from analysis.application.analysis_service import AnalysisService
 from pydantic import BaseModel
+from config.config import get_settings
 
 import logging
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 router = APIRouter(prefix="/members", tags=["members"])
 
@@ -58,8 +60,9 @@ def login(
         key="refresh_token",
         value=login_result["refresh_token"],
         httponly=True,
-        samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
+        samesite=settings.COOKIE_SAMESITE,
+        secure=settings.cookie_secure,
+        domain=settings.COOKIE_DOMAIN,
         max_age=60 * 60 * 24 * 7  # 7 days
     )
     
@@ -164,7 +167,12 @@ def logout(
         member_service.refresh_token_repo.revoke_token(refresh_token)
     
     # Delete refresh token cookie
-    response.delete_cookie("refresh_token")
+    response.delete_cookie(
+        key="refresh_token",
+        domain=settings.COOKIE_DOMAIN,
+        secure=settings.cookie_secure,
+        samesite=settings.COOKIE_SAMESITE
+    )
     
     return {"message": "Logout successful"}
 
