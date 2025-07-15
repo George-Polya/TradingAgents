@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.mysql import LONGTEXT
 
 # revision identifiers, used by Alembic.
 revision: str = '001'
@@ -19,88 +18,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Change TEXT columns to LONGTEXT for better capacity."""
-    # Change all report columns from TEXT to LONGTEXT
-    op.alter_column('analyses', 'market_report',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'sentiment_report',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'news_report',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'fundamentals_report',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'trader_investment_plan',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'final_trade_decision',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'final_report',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'error_message',
-                    existing_type=sa.TEXT(),
-                    type_=LONGTEXT(),
-                    existing_nullable=True)
+    """Change TEXT columns to TEXT for PostgreSQL compatibility."""
+    # In PostgreSQL, TEXT type already supports unlimited length, so this migration is a no-op
+    pass
 
 
 def downgrade() -> None:
-    """Revert LONGTEXT columns back to TEXT."""
-    # Revert all report columns from LONGTEXT back to TEXT
-    op.alter_column('analyses', 'market_report',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'sentiment_report',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'news_report',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'fundamentals_report',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'trader_investment_plan',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'final_trade_decision',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'final_report',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
-    
-    op.alter_column('analyses', 'error_message',
-                    existing_type=LONGTEXT(),
-                    type_=sa.TEXT(),
-                    existing_nullable=True)
+    """Revert - no-op for PostgreSQL."""
+    # In PostgreSQL, TEXT type already supports unlimited length, so this migration is a no-op
+    pass

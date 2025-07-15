@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import Field, SQLModel, Relationship
-from sqlalchemy import Column, UUID, Numeric, VARCHAR  # 필요한 타입들을 sqlalchemy에서 가져옵니다.
 from utils.auth import Role
 import uuid
 

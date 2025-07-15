@@ -34,9 +34,9 @@ markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
 mocker==1.1.1
-mysqlclient==2.2.7
+psycopg2-binary==2.9.10
 oracledb==3.2.0
-packaging==25.0
+packaging==24.2
 passlib==1.7.4
 pluggy==1.6.0
 prompt_toolkit==3.0.51
@@ -47,13 +47,12 @@ pydantic==2.11.7
 pydantic-settings==2.10.1
 pydantic_core==2.33.2
 Pygments==2.19.2
-PyMySQL==1.1.1
 pytest==8.4.1
 pytest-mock==3.14.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-jose==3.5.0
-python-multipart==0.0.20
+python-multipart==0.0.18
 PyYAML==6.0.2
 redis==5.2.1
 rich==14.0.0
@@ -73,7 +72,7 @@ typing_extensions==4.14.0
 tzdata==2025.2
 uvicorn==0.34.3
 vine==5.1.0
-watchfiles==1.1.0
+watchfiles==0.20.0
 wcwidth==0.2.13
 websockets==15.0.1
 wheel==0.45.1

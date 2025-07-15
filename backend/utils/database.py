@@ -23,15 +23,12 @@ engine_config = {
     "pool_pre_ping": True,  # 연결 상태 확인
     "pool_recycle": 3600,  # 1시간마다 연결 재사용
     "connect_args": {
-        "charset": "utf8mb4",
         "connect_timeout": 10,
-        "read_timeout": 30,
-        "write_timeout": 30,
-        "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+        "options": "-c application_name=TradingAgents -c statement_timeout=30000"  # 애플리케이션 이름과 30초 타임아웃
     }
 }
 
-# MySQL 엔진 생성
+# PostgreSQL 엔진 생성
 try:
     engine = create_engine(settings.database_url, **engine_config)
     logger.info("데이터베이스 엔진 생성 완료")

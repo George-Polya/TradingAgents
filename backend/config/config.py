@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         validate_default=True,
     )
 
-    # MySQL 데이터베이스 설정
+    # PostgreSQL 데이터베이스 설정
     DB_HOST: str = Field(description="Database host")
     DB_PORT: int = Field(ge=1, le=65535, description="Database port")
     DB_USER: str = Field(min_length=1, description="Database username")
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     
     @property
     def database_url(self) -> str:
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
+        return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
     @property
     def allowed_origins_list(self) -> list[str]:
