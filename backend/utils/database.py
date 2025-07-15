@@ -3,6 +3,7 @@ from pathlib import Path
 from sqlmodel import SQLModel, create_engine, Session
 from config.config import get_settings
 from member.infra.db_models.member import Member
+from member.infra.db_models.refresh_token import RefreshToken
 from analysis.infra.db_models.analysis import Analysis
 import logging
 
@@ -50,18 +51,16 @@ def get_session():
         session.close()
 
 def create_db_and_tables():
-    """테이블 생성"""
-    try:
-        # 개발 환경에서만 테이블 자동 생성
-        if not settings.is_production:
-            # SQLModel.metadata.drop_all(engine)
-            SQLModel.metadata.create_all(engine)
-            logger.info("데이터베이스 테이블 생성 완료")
-        else:
-            logger.info("프로덕션 환경 - 테이블 자동 생성 건너뜀")
-    except Exception as e:
-        logger.error(f"테이블 생성 실패: {str(e)}")
-        raise DatabaseConnectionError()
+    """테이블 생성 - Alembic을 사용하여 관리해야 합니다"""
+    logger.warning(
+        "테이블 생성은 Alembic을 통해 관리되어야 합니다. "
+        "다음 명령어를 사용하세요:\n"
+        "  - 초기 설정: alembic upgrade head\n"
+        "  - 새 마이그레이션 생성: alembic revision --autogenerate -m 'description'\n"
+        "  - 마이그레이션 적용: alembic upgrade head"
+    )
+    # SQLModel.metadata.create_all()은 사용하지 않습니다
+    # 모든 스키마 관리는 Alembic을 통해 진행합니다
 
 def check_db_connection():
     """데이터베이스 연결 확인"""

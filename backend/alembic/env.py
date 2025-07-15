@@ -20,6 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from sqlmodel import SQLModel
 from analysis.infra.db_models.analysis import Analysis
 from member.infra.db_models.member import Member
+from member.infra.db_models.refresh_token import RefreshToken
 
 target_metadata = SQLModel.metadata
 
