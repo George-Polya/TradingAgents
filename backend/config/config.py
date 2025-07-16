@@ -42,10 +42,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = Field(default="development", description="Environment (development/staging/production)")
     DEBUG: bool = Field(default=True, description="Debug mode")
 
-    # Supabase 설정
-    SUPABASE_URL: str = Field(default="", description="Supabase URL")
-    SUPABASE_ANON_KEY: str = Field(default="", description="Supabase Anon Key")
-    SUPABASE_SERVICE_KEY: str = Field(default="", description="Supabase Service Key")
+
     
     # 쿠키 보안 설정
     COOKIE_SECURE: bool | None = Field(default=None, description="Use secure cookies (HTTPS only)")
