@@ -17,7 +17,7 @@ class AnalysisStatus(str, enum.Enum):
 
 
 class Analysis(SQLModel, table=True):
-    __tablename__ = "analyses"
+    __tablename__ = "analysis"
     id: str = Field(default=None, max_length=36, primary_key=True)
     
     # 기본 분석 설정 정보
@@ -52,5 +52,5 @@ class Analysis(SQLModel, table=True):
     updated_at : datetime = Field(nullable=False)
 
     # Foreign Key와 Relationship 설정
-    member_id: str = Field(foreign_key="members.id")
+    member_id: str = Field(foreign_key="member.id")
     member: "Member" = Relationship(back_populates="analyses")

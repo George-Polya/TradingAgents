@@ -3,7 +3,7 @@ from pathlib import Path
 from sqlmodel import SQLModel, create_engine, Session
 from config.config import get_settings
 from member.infra.db_models.member import Member
-from member.infra.db_models.refresh_token import RefreshToken
+from refresh_token.infra.db_models.refresh_token import RefreshToken
 from analysis.infra.db_models.analysis import Analysis
 import logging
 

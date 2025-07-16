@@ -1,15 +1,16 @@
 from sqlmodel import Session, select
 from datetime import datetime
 from typing import Optional
-from member.domain.repository.refresh_token_repo import IRefreshTokenRepository
-from member.infra.db_models.refresh_token import RefreshToken
+from refresh_token.domain.repository.refresh_token_repo import IRefreshTokenRepository
+from refresh_token.infra.db_models.refresh_token import RefreshToken
 
 class RefreshTokenRepository(IRefreshTokenRepository):
     def __init__(self, session: Session):
         self.session = session
     
-    def save(self, member_id: str, token: str, expires_at: datetime) -> None:
+    def save(self, id: str, member_id: str, token: str, expires_at: datetime) -> None:
         refresh_token = RefreshToken(
+            id=id,
             member_id=member_id,
             token=token,
             expires_at=expires_at

@@ -2,7 +2,7 @@ from dependency_injector import containers, providers
 from utils.database import get_session
 from utils.crypto import Crypto
 from member.infra.repository.member_repo import MemberRepository
-from member.infra.repository.refresh_token_repo import RefreshTokenRepository
+from refresh_token.infra.repository.refresh_token_repo import RefreshTokenRepository
 from member.application.member_service import MemberService
 from analysis.application.analysis_service import AnalysisService
 from analysis.infra.repository.analysis_repo import AnalysisRepository

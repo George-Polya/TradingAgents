@@ -1,7 +1,7 @@
 from sqlmodel import Session
 from utils.crypto import Crypto
 from member.domain.repository.member_repo import IMemberRepository
-from member.domain.repository.refresh_token_repo import IRefreshTokenRepository
+from refresh_token.domain.repository.refresh_token_repo import IRefreshTokenRepository
 from utils.auth import Role
 from member.domain.member import Member as MemberVO
 from fastapi import HTTPException, status
@@ -99,7 +99,7 @@ class MemberService:
         self.refresh_token_repo.revoke_all_member_tokens(member.id)
         
         # Save new refresh token
-        self.refresh_token_repo.save(member.id, refresh_token, expires_at)
+        self.refresh_token_repo.save(self.ulid.generate(),member.id, refresh_token, expires_at)
         
         return {
             "access_token": access_token,

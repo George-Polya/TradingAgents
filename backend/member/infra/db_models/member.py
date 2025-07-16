@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from analysis.infra.db_models.analysis import Analysis
 
 class Member(SQLModel, table=True):
-    __tablename__ = "members"
+    __tablename__ = "member"
     id : str = Field(default=None, max_length=36, primary_key=True)
     email : str = Field(max_length=64, unique=True, nullable=False)
     name : str = Field(max_length=32, nullable=False)
