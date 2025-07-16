@@ -10,23 +10,30 @@ def create_market_analyst(llm, toolkit):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        if toolkit.config["online_tools"]:
-            tools = [
-                toolkit.get_YFin_data_online,
-                toolkit.get_stockstats_indicators_report_online,
-            ]
-        else:
-            tools = [
-                # toolkit.get_YFin_data,  # Offline tool - commented out
-                # toolkit.get_stockstats_indicators_report,  # Offline tool - commented out
-                toolkit.get_YFin_data_online,  # Use online version instead
-                toolkit.get_stockstats_indicators_report_online,  # Use online version instead
-            ]
+        # Use only FinnHub, StockStats, and Search Provider tools
+        tools = [
+            # FinnHub tools
+            toolkit.get_finnhub_news,
+            toolkit.get_finnhub_company_insider_sentiment,
+            # StockStats tool
+            toolkit.get_stockstats_indicators_report_online,
+            # Search Provider tools
+            toolkit.get_stock_news,
+            toolkit.get_global_news,
+            toolkit.get_fundamentals,
+        ]
 
         system_message = (
             """**IMPORTANT THING** Respond in Korean(한국어로 대답해주세요)
 
-You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+You are a trading assistant tasked with analyzing financial markets using FinnHub, StockStats, and Search Provider tools. 
+
+Available tools:
+1. **FinnHub**: get_finnhub_news (company news), get_finnhub_company_insider_sentiment (insider trading sentiment)
+2. **StockStats**: get_stockstats_indicators_report_online (technical indicators like RSI, MACD, SMA, etc.)
+3. **Search Provider**: get_stock_news (AI-powered stock news search), get_global_news (macro news), get_fundamentals (company fundamentals)
+
+Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
@@ -50,7 +57,9 @@ Volatility Indicators:
 Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
-- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_YFin_data first to retrieve the CSV that is needed to generate indicators. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
+- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions.
+
+IMPORTANT: Use get_finnhub_news for recent news, get_finnhub_company_insider_sentiment for insider trading analysis, and get_stockstats_indicators_report_online for technical indicators. Use search provider tools for additional market context."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 
