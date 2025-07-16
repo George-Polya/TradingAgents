@@ -3,7 +3,8 @@ from .reddit_utils import fetch_top_from_category
 from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
-from .finnhub_utils import get_data_in_range
+from .finnhub.utils import get_data_in_range
+from .finnhub import FinnHubProvider, get_finnhub_provider
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -54,22 +55,42 @@ def get_finnhub_news(
 
     before, _ = parse_date_range(curr_date, look_back_days)
 
-    result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
-
-    if len(result) == 0:
-        return ""
-
-    combined_result = ""
-    for day, data in result.items():
-        if len(data) == 0:
-            continue
-        for entry in data:
+    # Try API first (v2)
+    try:
+        provider = get_finnhub_provider()
+        news = provider.get_company_news(ticker, from_date=before, to_date=curr_date)
+        
+        if not news:
+            return ""
+        
+        combined_result = ""
+        for article in news:
+            date_str = article.get_datetime().strftime("%Y-%m-%d")
             current_news = (
-                "### " + entry["headline"] + f" ({day})" + "\n" + entry["summary"]
+                "### " + article.headline + f" ({date_str})" + "\n" + article.summary
             )
             combined_result += current_news + "\n\n"
+        
+        return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
+        
+    except Exception as e:
+        # Fallback to file-based data (v1)
+        result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
 
-    return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
+        if len(result) == 0:
+            return ""
+
+        combined_result = ""
+        for day, data in result.items():
+            if len(data) == 0:
+                continue
+            for entry in data:
+                current_news = (
+                    "### " + entry["headline"] + f" ({day})" + "\n" + entry["summary"]
+                )
+                combined_result += current_news + "\n\n"
+
+        return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
 
 
 def get_finnhub_company_insider_sentiment(
@@ -89,27 +110,50 @@ def get_finnhub_company_insider_sentiment(
         str: a report of the sentiment in the past 15 days starting at curr_date
     """
 
-
     before, _ = parse_date_range(curr_date, look_back_days)
 
-    data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
+    # Try API first (v2)
+    try:
+        provider = get_finnhub_provider()
+        sentiment_data = provider.get_insider_sentiment(ticker, from_date=before, to_date=curr_date)
+        
+        if not sentiment_data or 'data' not in sentiment_data or not sentiment_data['data']:
+            return ""
+        
+        result_str = ""
+        seen_entries = set()
+        for entry in sentiment_data['data']:
+            key = f"{entry.get('year', '')}-{entry.get('month', '')}"
+            if key not in seen_entries:
+                result_str += f"### {entry.get('year', '')}-{entry.get('month', '')}:\nChange: {entry.get('change', 0)}\nMonthly Share Purchase Ratio: {entry.get('mspr', 0)}\n\n"
+                seen_entries.add(key)
+        
+        return (
+            f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n"
+            + result_str
+            + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
+        )
+        
+    except Exception as e:
+        # Fallback to file-based data (v1)
+        data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
 
-    if len(data) == 0:
-        return ""
+        if len(data) == 0:
+            return ""
 
-    result_str = ""
-    seen_dicts = []
-    for date, senti_list in data.items():
-        for entry in senti_list:
-            if entry not in seen_dicts:
-                result_str += f"### {entry['year']}-{entry['month']}:\nChange: {entry['change']}\nMonthly Share Purchase Ratio: {entry['mspr']}\n\n"
-                seen_dicts.append(entry)
+        result_str = ""
+        seen_dicts = []
+        for date, senti_list in data.items():
+            for entry in senti_list:
+                if entry not in seen_dicts:
+                    result_str += f"### {entry['year']}-{entry['month']}:\nChange: {entry['change']}\nMonthly Share Purchase Ratio: {entry['mspr']}\n\n"
+                    seen_dicts.append(entry)
 
-    return (
-        f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n"
-        + result_str
-        + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
-    )
+        return (
+            f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n"
+            + result_str
+            + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
+        )
 
 
 def get_finnhub_company_insider_transactions(
@@ -131,25 +175,57 @@ def get_finnhub_company_insider_transactions(
 
     before, _ = parse_date_range(curr_date, look_back_days)
 
-    data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
+    # Try API first (v2)
+    try:
+        provider = get_finnhub_provider()
+        trans_data = provider.get_insider_transactions(ticker)
+        
+        if not trans_data or 'data' not in trans_data or not trans_data['data']:
+            return ""
+        
+        result_str = ""
+        seen_transactions = set()
+        
+        # Filter transactions by date range
+        for entry in trans_data['data']:
+            filing_date = entry.get('filingDate', '')
+            if filing_date and before <= filing_date <= curr_date:
+                # Create unique key to avoid duplicates
+                key = f"{filing_date}-{entry.get('name', '')}-{entry.get('transactionPrice', '')}"
+                if key not in seen_transactions:
+                    result_str += f"### Filing Date: {filing_date}, {entry.get('name', '')}:\nChange:{entry.get('change', 0)}\nShares: {entry.get('share', 0)}\nTransaction Price: {entry.get('transactionPrice', 0)}\nTransaction Code: {entry.get('transactionCode', '')}\n\n"
+                    seen_transactions.add(key)
+        
+        if not result_str:
+            return ""
+            
+        return (
+            f"## {ticker} insider transactions from {before} to {curr_date}:\n"
+            + result_str
+            + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
+        )
+        
+    except Exception as e:
+        # Fallback to file-based data (v1)
+        data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
 
-    if len(data) == 0:
-        return ""
+        if len(data) == 0:
+            return ""
 
-    result_str = ""
+        result_str = ""
 
-    seen_dicts = []
-    for date, senti_list in data.items():
-        for entry in senti_list:
-            if entry not in seen_dicts:
-                result_str += f"### Filing Date: {entry['filingDate']}, {entry['name']}:\nChange:{entry['change']}\nShares: {entry['share']}\nTransaction Price: {entry['transactionPrice']}\nTransaction Code: {entry['transactionCode']}\n\n"
-                seen_dicts.append(entry)
+        seen_dicts = []
+        for date, senti_list in data.items():
+            for entry in senti_list:
+                if entry not in seen_dicts:
+                    result_str += f"### Filing Date: {entry['filingDate']}, {entry['name']}:\nChange:{entry['change']}\nShares: {entry['share']}\nTransaction Price: {entry['transactionPrice']}\nTransaction Code: {entry['transactionCode']}\n\n"
+                    seen_dicts.append(entry)
 
-    return (
-        f"## {ticker} insider transactions from {before} to {curr_date}:\n"
-        + result_str
-        + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
-    )
+        return (
+            f"## {ticker} insider transactions from {before} to {curr_date}:\n"
+            + result_str
+            + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
+        )
 
 
 def get_simfin_balance_sheet(
@@ -734,4 +810,155 @@ def get_fundamentals(ticker, curr_date):
     search_provider = _search_factory.create_provider(config)
     query = f"Search for fundamental analysis data and financial metrics for {ticker} stock from the month before {curr_date} to the month of {curr_date}. Look for earnings reports, financial ratios like PE, PS, cash flow, revenue growth, analyst ratings, and any fundamental analysis discussions. Please present key metrics in a structured format."
     return search_provider.search(query)
+
+
+# ============================================================================
+# FINNHUB V2 FUNCTIONS - Real-time API access
+# ============================================================================
+
+def get_finnhub_quote(symbol: str) -> Dict[str, Any]:
+    """
+    Get real-time quote for a symbol using FinnHub API.
+    
+    Args:
+        symbol: Stock ticker symbol
+        
+    Returns:
+        Dictionary with quote data
+    """
+    provider = get_finnhub_provider()
+    quote = provider.get_quote(symbol)
+    
+    return {
+        'symbol': symbol,
+        'current_price': quote.current_price,
+        'change': quote.change,
+        'percent_change': quote.percent_change,
+        'high': quote.high,
+        'low': quote.low,
+        'open': quote.open,
+        'previous_close': quote.previous_close,
+        'timestamp': quote.timestamp
+    }
+
+
+def get_finnhub_company_profile(symbol: str) -> Dict[str, Any]:
+    """
+    Get company profile information from FinnHub.
+    
+    Args:
+        symbol: Stock ticker symbol
+        
+    Returns:
+        Dictionary with company profile
+    """
+    provider = get_finnhub_provider()
+    profile = provider.get_company_profile(symbol)
+    
+    return {
+        'symbol': profile.symbol or symbol,
+        'name': profile.name,
+        'country': profile.country,
+        'currency': profile.currency,
+        'exchange': profile.exchange,
+        'industry': profile.industry,
+        'website': profile.website,
+        'market_cap': profile.market_capitalization,
+        'shares_outstanding': profile.outstanding_shares,
+        'logo': profile.logo,
+        'phone': profile.phone,
+        'ipo_date': profile.ipo_date
+    }
+
+
+def get_finnhub_news_v2(
+    symbol: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    days_back: int = 7
+) -> List[Dict[str, Any]]:
+    """
+    Get company news from FinnHub API.
+    
+    Args:
+        symbol: Stock ticker symbol
+        from_date: Start date (YYYY-MM-DD)
+        to_date: End date (YYYY-MM-DD)
+        days_back: Days to look back if dates not provided
+        
+    Returns:
+        List of news articles
+    """
+    provider = get_finnhub_provider()
+    news = provider.get_company_news(symbol, from_date, to_date, days_back)
+    
+    return [{
+        'symbol': article.related,
+        'headline': article.headline,
+        'summary': article.summary,
+        'source': article.source,
+        'url': article.url,
+        'datetime': article.get_datetime().isoformat(),
+        'timestamp': article.datetime,
+        'category': article.category,
+        'image': article.image
+    } for article in news]
+
+
+def get_finnhub_market_news(category: str = "general") -> List[Dict[str, Any]]:
+    """
+    Get market news from FinnHub.
+    
+    Args:
+        category: News category (general, forex, crypto, merger)
+        
+    Returns:
+        List of market news articles
+    """
+    provider = get_finnhub_provider()
+    news = provider.get_market_news(category)
+    
+    return [{
+        'headline': article.headline,
+        'summary': article.summary,
+        'source': article.source,
+        'url': article.url,
+        'datetime': article.get_datetime().isoformat(),
+        'timestamp': article.datetime,
+        'category': article.category,
+        'id': article.id,
+        'image': article.image,
+        'related': article.related
+    } for article in news]
+
+
+def get_finnhub_insider_sentiment_v2(
+    symbol: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get insider sentiment from FinnHub API.
+    
+    Args:
+        symbol: Stock ticker symbol
+        from_date: Start date (YYYY-MM-DD)
+        to_date: End date (YYYY-MM-DD)
+        
+    Returns:
+        Insider sentiment data
+    """
+    provider = get_finnhub_provider()
+    return provider.get_insider_sentiment(symbol, from_date, to_date)
+
+
+def check_finnhub_health() -> Dict[str, Any]:
+    """
+    Check FinnHub provider health status.
+    
+    Returns:
+        Health status dictionary
+    """
+    provider = get_finnhub_provider()
+    return provider.health_check()
 
