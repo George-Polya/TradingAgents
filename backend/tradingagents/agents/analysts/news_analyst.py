@@ -8,15 +8,12 @@ def create_news_analyst(llm, toolkit):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
 
-        if toolkit.config["online_tools"]:
-            tools = [toolkit.get_global_news, toolkit.get_google_news]
-        else:
-            tools = [
-                # toolkit.get_finnhub_news,  # Offline tool - commented out
-                # toolkit.get_reddit_news,  # Offline tool - commented out
-                toolkit.get_google_news,  # This is actually online (scrapes Google)
-                toolkit.get_global_news,  # Use online version for global news
-            ]
+        # Use only FinnHub and Search Provider tools for news
+        tools = [
+            toolkit.get_finnhub_news,
+            toolkit.get_stock_news,  # Search provider for stock news
+            toolkit.get_global_news,  # Search provider for global news
+        ]
 
         system_message = (
             "**IMPORTANT THING** Respond in Korean(한국어로 대답해주세요)\n\nYou are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Look at news from EODHD, and finnhub to be comprehensive. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."

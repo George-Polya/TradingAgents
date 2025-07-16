@@ -9,17 +9,11 @@ def create_fundamentals_analyst(llm, toolkit):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        if toolkit.config["online_tools"]:
-            tools = [toolkit.get_fundamentals]
-        else:
-            tools = [
-                # toolkit.get_finnhub_company_insider_sentiment,  # Offline tool - commented out
-                # toolkit.get_finnhub_company_insider_transactions,  # Offline tool - commented out
-                # toolkit.get_simfin_balance_sheet,  # Offline tool - commented out
-                # toolkit.get_simfin_cashflow,  # Offline tool - commented out
-                # toolkit.get_simfin_income_stmt,  # Offline tool - commented out
-                toolkit.get_fundamentals,  # Use online version instead
-            ]
+        # Use only FinnHub and Search Provider tools for fundamentals
+        tools = [
+            toolkit.get_finnhub_company_insider_sentiment,
+            toolkit.get_fundamentals,  # Search provider for fundamentals
+        ]
 
         system_message = (
             "**IMPORTANT THING** Respond in Korean(한국어로 대답해주세요)\n\nYou are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, company financial history, insider sentiment and insider transactions to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."

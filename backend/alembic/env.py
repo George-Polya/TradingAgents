@@ -1,9 +1,10 @@
+import os
 from logging.config import fileConfig
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+
 from alembic import context
-import sys
-import os
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -14,15 +15,27 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Add your model's MetaData object here for 'autogenerate' support
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
+target_metadata = None
 
-from sqlmodel import SQLModel
-from analysis.infra.db_models.analysis import Analysis
-from member.infra.db_models.member import Member
-from member.infra.db_models.refresh_token import RefreshToken
+# Get database URL from environment variables
+def get_database_url():
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME", "postgres")
+    
+    if not all([db_user, db_password, db_host]):
+        raise ValueError("Database configuration not found in environment variables")
+    
+    return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-target_metadata = SQLModel.metadata
+# Set the database URL
+config.set_main_option("sqlalchemy.url", get_database_url())
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -61,21 +74,8 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # Get database URL from environment variables
-    db_user = os.environ.get("DB_USER", "postgres")
-    db_password = os.environ.get("DB_PASSWORD", "")
-    db_host = os.environ.get("DB_HOST", "localhost")
-    db_port = os.environ.get("DB_PORT", "5432")
-    db_name = os.environ.get("DB_NAME", "postgres")
-    
-    database_url = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    
-    # Override the URL from alembic.ini with environment variable
-    configuration = config.get_section(config.config_ini_section)
-    configuration['sqlalchemy.url'] = database_url
-    
     connectable = engine_from_config(
-        configuration,
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

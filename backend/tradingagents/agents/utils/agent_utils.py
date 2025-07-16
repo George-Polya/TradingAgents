@@ -65,6 +65,7 @@ class Toolkit:
         return global_news_result
 
     @staticmethod
+    @tool
     def get_finnhub_news(
         ticker: Annotated[
             str,
@@ -215,6 +216,7 @@ class Toolkit:
         return result_stockstats
 
     @staticmethod
+    @tool
     def get_finnhub_company_insider_sentiment(
         ticker: Annotated[str, "ticker symbol for the company"],
         curr_date: Annotated[

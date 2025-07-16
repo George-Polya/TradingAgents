@@ -66,15 +66,17 @@ class StockstatsUtils:
                     symbol,
                     start=start_date,
                     end=end_date,
-                    multi_level_index=False,
                     progress=False,
                     auto_adjust=True,
                 )
                 data = data.reset_index()
                 data.to_csv(data_file, index=False)
 
+            # Ensure Date column is in the right format before wrapping
+            if 'Date' in data.columns:
+                data['Date'] = pd.to_datetime(data['Date']).dt.strftime("%Y-%m-%d")
+            
             df = wrap(data)
-            df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
             curr_date = curr_date.strftime("%Y-%m-%d")
 
         df[indicator]  # trigger stockstats to calculate the indicator

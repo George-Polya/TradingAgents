@@ -3,8 +3,8 @@ from .reddit_utils import fetch_top_from_category
 from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
-from .google_news_provider import GoogleNewsProvider
-from .finnhub_utils import get_data_in_range
+from .finnhub.utils import get_data_in_range
+from .finnhub import FinnHubProvider, get_finnhub_provider
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -16,7 +16,6 @@ import yfinance as yf
 from openai import OpenAI
 from .config import get_config, set_config, DATA_DIR
 from .search_provider_factory import SearchProviderFactory, create_search_provider_factory
-
 
 def parse_date_range(curr_date: str, look_back_days: int) -> Tuple[str, str]:
     """
@@ -33,7 +32,6 @@ def parse_date_range(curr_date: str, look_back_days: int) -> Tuple[str, str]:
     start_date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = start_date_obj - relativedelta(days=look_back_days)
     return before.strftime("%Y-%m-%d"), end_date
-
 
 def get_finnhub_news(
     ticker: Annotated[
@@ -57,22 +55,42 @@ def get_finnhub_news(
 
     before, _ = parse_date_range(curr_date, look_back_days)
 
-    result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
-
-    if len(result) == 0:
-        return ""
-
-    combined_result = ""
-    for day, data in result.items():
-        if len(data) == 0:
-            continue
-        for entry in data:
+    # Try API first (v2)
+    try:
+        provider = get_finnhub_provider()
+        news = provider.get_company_news(ticker, from_date=before, to_date=curr_date)
+        
+        if not news:
+            return ""
+        
+        combined_result = ""
+        for article in news:
+            date_str = article.get_datetime().strftime("%Y-%m-%d")
             current_news = (
-                "### " + entry["headline"] + f" ({day})" + "\n" + entry["summary"]
+                "### " + article.headline + f" ({date_str})" + "\n" + article.summary
             )
             combined_result += current_news + "\n\n"
+        
+        return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
+        
+    except Exception as e:
+        # Fallback to file-based data (v1)
+        result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
 
-    return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
+        if len(result) == 0:
+            return ""
+
+        combined_result = ""
+        for day, data in result.items():
+            if len(data) == 0:
+                continue
+            for entry in data:
+                current_news = (
+                    "### " + entry["headline"] + f" ({day})" + "\n" + entry["summary"]
+                )
+                combined_result += current_news + "\n\n"
+
+        return f"## {ticker} News, from {before} to {curr_date}:\n" + str(combined_result)
 
 
 def get_finnhub_company_insider_sentiment(
@@ -94,24 +112,48 @@ def get_finnhub_company_insider_sentiment(
 
     before, _ = parse_date_range(curr_date, look_back_days)
 
-    data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
+    # Try API first (v2)
+    try:
+        provider = get_finnhub_provider()
+        sentiment_data = provider.get_insider_sentiment(ticker, from_date=before, to_date=curr_date)
+        
+        if not sentiment_data or 'data' not in sentiment_data or not sentiment_data['data']:
+            return ""
+        
+        result_str = ""
+        seen_entries = set()
+        for entry in sentiment_data['data']:
+            key = f"{entry.get('year', '')}-{entry.get('month', '')}"
+            if key not in seen_entries:
+                result_str += f"### {entry.get('year', '')}-{entry.get('month', '')}:\nChange: {entry.get('change', 0)}\nMonthly Share Purchase Ratio: {entry.get('mspr', 0)}\n\n"
+                seen_entries.add(key)
+        
+        return (
+            f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n"
+            + result_str
+            + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
+        )
+        
+    except Exception as e:
+        # Fallback to file-based data (v1)
+        data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
 
-    if len(data) == 0:
-        return ""
+        if len(data) == 0:
+            return ""
 
-    result_str = ""
-    seen_dicts = []
-    for date, senti_list in data.items():
-        for entry in senti_list:
-            if entry not in seen_dicts:
-                result_str += f"### {entry['year']}-{entry['month']}:\nChange: {entry['change']}\nMonthly Share Purchase Ratio: {entry['mspr']}\n\n"
-                seen_dicts.append(entry)
+        result_str = ""
+        seen_dicts = []
+        for date, senti_list in data.items():
+            for entry in senti_list:
+                if entry not in seen_dicts:
+                    result_str += f"### {entry['year']}-{entry['month']}:\nChange: {entry['change']}\nMonthly Share Purchase Ratio: {entry['mspr']}\n\n"
+                    seen_dicts.append(entry)
 
-    return (
-        f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n"
-        + result_str
-        + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
-    )
+        return (
+            f"## {ticker} Insider Sentiment Data for {before} to {curr_date}:\n"
+            + result_str
+            + "The change field refers to the net buying/selling from all insiders' transactions. The mspr field refers to monthly share purchase ratio."
+        )
 
 
 def get_finnhub_company_insider_transactions(
@@ -133,25 +175,57 @@ def get_finnhub_company_insider_transactions(
 
     before, _ = parse_date_range(curr_date, look_back_days)
 
-    data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
+    # Try API first (v2)
+    try:
+        provider = get_finnhub_provider()
+        trans_data = provider.get_insider_transactions(ticker)
+        
+        if not trans_data or 'data' not in trans_data or not trans_data['data']:
+            return ""
+        
+        result_str = ""
+        seen_transactions = set()
+        
+        # Filter transactions by date range
+        for entry in trans_data['data']:
+            filing_date = entry.get('filingDate', '')
+            if filing_date and before <= filing_date <= curr_date:
+                # Create unique key to avoid duplicates
+                key = f"{filing_date}-{entry.get('name', '')}-{entry.get('transactionPrice', '')}"
+                if key not in seen_transactions:
+                    result_str += f"### Filing Date: {filing_date}, {entry.get('name', '')}:\nChange:{entry.get('change', 0)}\nShares: {entry.get('share', 0)}\nTransaction Price: {entry.get('transactionPrice', 0)}\nTransaction Code: {entry.get('transactionCode', '')}\n\n"
+                    seen_transactions.add(key)
+        
+        if not result_str:
+            return ""
+            
+        return (
+            f"## {ticker} insider transactions from {before} to {curr_date}:\n"
+            + result_str
+            + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
+        )
+        
+    except Exception as e:
+        # Fallback to file-based data (v1)
+        data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
 
-    if len(data) == 0:
-        return ""
+        if len(data) == 0:
+            return ""
 
-    result_str = ""
+        result_str = ""
 
-    seen_dicts = []
-    for date, senti_list in data.items():
-        for entry in senti_list:
-            if entry not in seen_dicts:
-                result_str += f"### Filing Date: {entry['filingDate']}, {entry['name']}:\nChange:{entry['change']}\nShares: {entry['share']}\nTransaction Price: {entry['transactionPrice']}\nTransaction Code: {entry['transactionCode']}\n\n"
-                seen_dicts.append(entry)
+        seen_dicts = []
+        for date, senti_list in data.items():
+            for entry in senti_list:
+                if entry not in seen_dicts:
+                    result_str += f"### Filing Date: {entry['filingDate']}, {entry['name']}:\nChange:{entry['change']}\nShares: {entry['share']}\nTransaction Price: {entry['transactionPrice']}\nTransaction Code: {entry['transactionCode']}\n\n"
+                    seen_dicts.append(entry)
 
-    return (
-        f"## {ticker} insider transactions from {before} to {curr_date}:\n"
-        + result_str
-        + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
-    )
+        return (
+            f"## {ticker} insider transactions from {before} to {curr_date}:\n"
+            + result_str
+            + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
+        )
 
 
 def get_simfin_balance_sheet(
@@ -295,73 +369,30 @@ def get_simfin_income_statements(
     )
 
 
-# Create a singleton instance of the GoogleNewsProvider
-_google_news_provider = GoogleNewsProvider(
-    cache_ttl=3600,  # 1 hour cache
-    rate_limit=0.5,  # 0.5 requests per second
-    max_retries=3,
-    respect_robots=True
-)
-
-
 def get_google_news(
     query: Annotated[str, "Query to search with"],
     curr_date: Annotated[str, "Curr date in yyyy-mm-dd format"],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
-    """
-    Get Google News articles using the new GoogleNewsProvider.
-    
-    Args:
-        query: Search query
-        curr_date: Current date in yyyy-mm-dd format
-        look_back_days: Number of days to look back
-        
-    Returns:
-        Formatted string with news articles
-    """
-    before, _ = parse_date_range(curr_date, look_back_days)
-    
-    try:
-        # Use the new provider
-        news_articles = _google_news_provider.search_news(
-            query=query,
-            start_date=before,
-            end_date=curr_date,
-            max_results=50,
-            use_cache=True
+    query = query.replace(" ", "+")
+
+    start_date = datetime.strptime(curr_date, "%Y-%m-%d")
+    before = start_date - relativedelta(days=look_back_days)
+    before = before.strftime("%Y-%m-%d")
+
+    news_results = getNewsData(query, before, curr_date)
+
+    news_str = ""
+
+    for news in news_results:
+        news_str += (
+            f"### {news['title']} (source: {news['source']}) \n\n{news['snippet']}\n\n"
         )
-        
-        if not news_articles:
-            return ""
-        
-        news_str = ""
-        for article in news_articles:
-            news_str += (
-                f"### {article.title} (source: {article.source}) \n\n"
-                f"{article.snippet}\n\n"
-            )
-        
-        return f"## {query} Google News, from {before} to {curr_date}:\n\n{news_str}"
-        
-    except Exception as e:
-        # Fallback to old implementation if new provider fails
-        import logging
-        logging.error(f"GoogleNewsProvider failed: {e}. Falling back to old implementation.")
-        
-        query = query.replace(" ", "+")
-        news_results = getNewsData(query, before, curr_date)
-        
-        news_str = ""
-        for news in news_results:
-            news_str += (
-                f"### {news['title']} (source: {news['source']}) \n\n{news['snippet']}\n\n"
-            )
-        
-        if len(news_results) == 0:
-            return ""
-        
-        return f"## {query} Google News, from {before} to {curr_date}:\n\n{news_str}"
+
+    if len(news_results) == 0:
+        return ""
+
+    return f"## {query} Google News, from {before} to {curr_date}:\n\n{news_str}"
 
 
 def get_reddit_global_news(
@@ -754,7 +785,6 @@ def get_YFin_data(
 
     return filtered_data
 
-
 # Enhanced search provider factory instance (singleton)
 _search_factory = create_search_provider_factory()
 
@@ -782,148 +812,153 @@ def get_fundamentals(ticker, curr_date):
     return search_provider.search(query)
 
 
-def get_company_google_news(
-    ticker: Annotated[str, "Company ticker symbol"],
-    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    look_back_days: Annotated[int, "Number of days to look back"] = 7,
-) -> str:
+# ============================================================================
+# FINNHUB V2 FUNCTIONS - Real-time API access
+# ============================================================================
+
+def get_finnhub_quote(symbol: str) -> Dict[str, Any]:
     """
-    Get Google News specifically for a company ticker.
+    Get real-time quote for a symbol using FinnHub API.
     
     Args:
-        ticker: Company ticker symbol
-        curr_date: Current date in yyyy-mm-dd format
-        look_back_days: Number of days to look back (default: 7)
+        symbol: Stock ticker symbol
         
     Returns:
-        Formatted string with company news articles
+        Dictionary with quote data
     """
-    try:
-        # Use the specialized company news method
-        curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-        news_articles = _google_news_provider.get_company_news(
-            ticker=ticker,
-            days_back=look_back_days,
-            max_results=30
-        )
-        
-        if not news_articles:
-            return ""
-        
-        news_str = ""
-        for article in news_articles:
-            news_str += (
-                f"### {article.title} (source: {article.source}) \n\n"
-                f"{article.snippet}\n\n"
-            )
-        
-        start_date = (curr_date_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
-        return f"## {ticker} Company News from Google News, from {start_date} to {curr_date}:\n\n{news_str}"
-        
-    except Exception as e:
-        # Fallback to regular search
-        import logging
-        logging.error(f"Company news search failed: {e}. Using regular search.")
-        return get_google_news(f"{ticker} stock company", curr_date, look_back_days)
+    provider = get_finnhub_provider()
+    quote = provider.get_quote(symbol)
+    
+    return {
+        'symbol': symbol,
+        'current_price': quote.current_price,
+        'change': quote.change,
+        'percent_change': quote.percent_change,
+        'high': quote.high,
+        'low': quote.low,
+        'open': quote.open,
+        'previous_close': quote.previous_close,
+        'timestamp': quote.timestamp
+    }
 
 
-def get_market_sentiment_google_news(
-    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    sectors: Annotated[List[str], "List of sectors to analyze"] = None,
-    look_back_days: Annotated[int, "Number of days to look back"] = 1,
-) -> Dict[str, str]:
+def get_finnhub_company_profile(symbol: str) -> Dict[str, Any]:
     """
-    Get market sentiment news by sector from Google News.
+    Get company profile information from FinnHub.
     
     Args:
-        curr_date: Current date in yyyy-mm-dd format
-        sectors: List of sectors (defaults to major sectors)
-        look_back_days: Number of days to look back (default: 1)
+        symbol: Stock ticker symbol
         
     Returns:
-        Dictionary mapping sectors to formatted news strings
+        Dictionary with company profile
     """
-    try:
-        # Use the specialized market sentiment method
-        sentiment_news = _google_news_provider.get_market_sentiment_news(
-            sectors=sectors,
-            days_back=look_back_days,
-            max_results=20
-        )
-        
-        result = {}
-        for sector, articles in sentiment_news.items():
-            if not articles:
-                result[sector] = ""
-                continue
-                
-            news_str = ""
-            for article in articles:
-                news_str += (
-                    f"### {article.title} (source: {article.source}) \n\n"
-                    f"{article.snippet}\n\n"
-                )
-            
-            curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-            start_date = (curr_date_dt - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
-            result[sector] = f"## {sector.capitalize()} Sector News, from {start_date} to {curr_date}:\n\n{news_str}"
-        
-        return result
-        
-    except Exception as e:
-        import logging
-        logging.error(f"Market sentiment search failed: {e}")
-        return {}
+    provider = get_finnhub_provider()
+    profile = provider.get_company_profile(symbol)
+    
+    return {
+        'symbol': profile.symbol or symbol,
+        'name': profile.name,
+        'country': profile.country,
+        'currency': profile.currency,
+        'exchange': profile.exchange,
+        'industry': profile.industry,
+        'website': profile.website,
+        'market_cap': profile.market_capitalization,
+        'shares_outstanding': profile.outstanding_shares,
+        'logo': profile.logo,
+        'phone': profile.phone,
+        'ipo_date': profile.ipo_date
+    }
 
 
-def get_breaking_google_news(
-    topics: Annotated[List[str], "List of topics to search for breaking news"],
-    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    hours_back: Annotated[int, "Number of hours to look back"] = 4,
-) -> str:
+def get_finnhub_news_v2(
+    symbol: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    days_back: int = 7
+) -> List[Dict[str, Any]]:
     """
-    Get breaking news for specific topics from Google News.
+    Get company news from FinnHub API.
     
     Args:
-        topics: List of topics to search
-        curr_date: Current date in yyyy-mm-dd format  
-        hours_back: Number of hours to look back (default: 4)
+        symbol: Stock ticker symbol
+        from_date: Start date (YYYY-MM-DD)
+        to_date: End date (YYYY-MM-DD)
+        days_back: Days to look back if dates not provided
         
     Returns:
-        Formatted string with breaking news articles
+        List of news articles
     """
-    try:
-        # Use the specialized breaking news method
-        news_articles = _google_news_provider.get_breaking_news(
-            topics=topics,
-            hours_back=hours_back
-        )
-        
-        if not news_articles:
-            return ""
-        
-        news_str = ""
-        for article in news_articles:
-            news_str += (
-                f"### {article.title} (source: {article.source}) \n\n"
-                f"{article.snippet}\n\n"
-            )
-        
-        topics_str = ", ".join(topics)
-        return f"## Breaking News for {topics_str} (last {hours_back} hours):\n\n{news_str}"
-        
-    except Exception as e:
-        import logging
-        logging.error(f"Breaking news search failed: {e}")
-        return ""
+    provider = get_finnhub_provider()
+    news = provider.get_company_news(symbol, from_date, to_date, days_back)
+    
+    return [{
+        'symbol': article.related,
+        'headline': article.headline,
+        'summary': article.summary,
+        'source': article.source,
+        'url': article.url,
+        'datetime': article.get_datetime().isoformat(),
+        'timestamp': article.datetime,
+        'category': article.category,
+        'image': article.image
+    } for article in news]
 
 
-def check_google_news_health() -> Dict[str, Any]:
+def get_finnhub_market_news(category: str = "general") -> List[Dict[str, Any]]:
     """
-    Check the health status of the Google News provider.
+    Get market news from FinnHub.
+    
+    Args:
+        category: News category (general, forex, crypto, merger)
+        
+    Returns:
+        List of market news articles
+    """
+    provider = get_finnhub_provider()
+    news = provider.get_market_news(category)
+    
+    return [{
+        'headline': article.headline,
+        'summary': article.summary,
+        'source': article.source,
+        'url': article.url,
+        'datetime': article.get_datetime().isoformat(),
+        'timestamp': article.datetime,
+        'category': article.category,
+        'id': article.id,
+        'image': article.image,
+        'related': article.related
+    } for article in news]
+
+
+def get_finnhub_insider_sentiment_v2(
+    symbol: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get insider sentiment from FinnHub API.
+    
+    Args:
+        symbol: Stock ticker symbol
+        from_date: Start date (YYYY-MM-DD)
+        to_date: End date (YYYY-MM-DD)
+        
+    Returns:
+        Insider sentiment data
+    """
+    provider = get_finnhub_provider()
+    return provider.get_insider_sentiment(symbol, from_date, to_date)
+
+
+def check_finnhub_health() -> Dict[str, Any]:
+    """
+    Check FinnHub provider health status.
     
     Returns:
         Health status dictionary
     """
-    return _google_news_provider.health_check()
-    
+    provider = get_finnhub_provider()
+    return provider.health_check()
+
