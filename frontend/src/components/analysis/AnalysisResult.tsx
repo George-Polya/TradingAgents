@@ -156,21 +156,6 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ analysisId, onBack }) =
       )}
 
       <ResultsSection>
-        {/* 시장 분석 보고서 */}
-        <ReportSection>
-          <ReportTitle>시장 분석 보고서</ReportTitle>
-          {analysis.market_report && !analysis.market_report.includes('def get_') ? (
-            <ReportContent>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {analysis.market_report}
-              </ReactMarkdown>
-            </ReportContent>
-          ) : (
-            <AnalyzingMessage>분석중입니다...</AnalyzingMessage>
-          )}
-        </ReportSection>
-
-
         {/* 뉴스 분석 보고서 */}
         <ReportSection>
           <ReportTitle>뉴스 분석 보고서</ReportTitle>

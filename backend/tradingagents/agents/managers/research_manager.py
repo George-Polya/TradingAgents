@@ -1,17 +1,18 @@
 import time
 import json
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
         history = state["investment_debate_state"].get("history", "")
-        market_research_report = state["market_report"]
+        # market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
         investment_debate_state = state["investment_debate_state"]
 
-        curr_situation = f"{market_research_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -37,7 +38,9 @@ Here are your past reflections on mistakes:
 Here is the debate:
 Debate History:
 {history}"""
-        response = llm.invoke(prompt)
+        response = llm.invoke(prompt, 
+            tools = [GenAITool(google_search={})]
+        )
 
         new_investment_debate_state = {
             "judge_decision": response.content,

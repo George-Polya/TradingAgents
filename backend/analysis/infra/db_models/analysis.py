@@ -32,7 +32,7 @@ class Analysis(SQLModel, table=True):
     status: AnalysisStatus = Field(default=AnalysisStatus.PENDING)
     
     # 개별 분석가 리포트들
-    market_report: str | None = Field(default=None, sa_column=Column(Text), description="Market Analyst 리포트")
+    # market_report: str | None = Field(default=None, sa_column=Column(Text), description="Market Analyst 리포트")
     news_report: str | None = Field(default=None, sa_column=Column(Text), description="News Analyst 리포트")
     fundamentals_report: str | None = Field(default=None, sa_column=Column(Text), description="Fundamentals Analyst 리포트")
     

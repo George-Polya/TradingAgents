@@ -1,5 +1,6 @@
 import time
 import json
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 
 def create_risk_manager(llm, memory):
@@ -9,12 +10,12 @@ def create_risk_manager(llm, memory):
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
-        market_research_report = state["market_report"]
+        # market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["news_report"]
         trader_plan = state["investment_plan"]
 
-        curr_situation = f"{market_research_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -44,7 +45,9 @@ Deliverables:
 
 Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
 
-        response = llm.invoke(prompt)
+        response = llm.invoke(prompt, 
+            tools = [GenAITool(google_search={})]
+        )
 
         new_risk_debate_state = {
             "judge_decision": response.content,

@@ -50,11 +50,11 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
 
     def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
         """Extract the current market situation from the state."""
-        curr_market_report = current_state["market_report"]
+        # curr_market_report = current_state["market_report"]
         curr_news_report = current_state["news_report"]
         curr_fundamentals_report = current_state["fundamentals_report"]
 
-        return f"{curr_market_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}"
+        return f"{curr_news_report}\n\n{curr_fundamentals_report}"
 
     def _reflect_on_component(
         self, component_type: str, report: str, situation: str, returns_losses

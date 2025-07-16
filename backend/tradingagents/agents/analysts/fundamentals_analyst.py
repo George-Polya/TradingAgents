@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 def create_fundamentals_analyst(llm, toolkit):
     def fundamentals_analyst_node(state):
@@ -44,12 +44,17 @@ def create_fundamentals_analyst(llm, toolkit):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
-
+        result = chain.invoke(state["messages"],
+                tools = [GenAITool(google_search={})]                      
+        )
         report = ""
 
         if len(result.tool_calls) == 0:
-            report = result.content
+            # result.content가 리스트인 경우 문자열로 변환
+            if isinstance(result.content, list):
+                report = "\n".join(str(item) for item in result.content)
+            else:
+                report = result.content
 
         return {
             "messages": [result],

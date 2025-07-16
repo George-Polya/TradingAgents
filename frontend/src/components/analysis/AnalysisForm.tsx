@@ -115,9 +115,9 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
   } = useForm<TradingAnalysisRequest>({
     resolver: yupResolver(schema),
     defaultValues: {
-      ticker: 'NVDA',
+      ticker: '',
       analysis_date: new Date().toISOString().split('T')[0],
-      analysts: [AnalystType.MARKET, AnalystType.NEWS, AnalystType.FUNDAMENTALS],
+      analysts: [AnalystType.NEWS, AnalystType.FUNDAMENTALS],
       research_depth: 1,
       llm_provider: 'google',
       backend_url: 'https://generativelanguage.googleapis.com/v1',
@@ -199,7 +199,6 @@ const AnalysisForm: React.FC<AnalysisFormProps> = ({ onSuccess }) => {
                   onChange={(e) => handleAnalystChange(analyst, e.target.checked)}
                 />
                 <CheckboxLabel htmlFor={analyst}>
-                  {analyst === AnalystType.MARKET && '시장 분석가'}
                   {analyst === AnalystType.NEWS && '뉴스 분석가'}
                   {analyst === AnalystType.FUNDAMENTALS && '펀더멘털 분석가'}
                 </CheckboxLabel>

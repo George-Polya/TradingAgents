@@ -35,7 +35,6 @@ class Propagator:
                     "count": 0,
                 }
             ),
-            "market_report": "",
             "fundamentals_report": "",
             "news_report": "",
         }

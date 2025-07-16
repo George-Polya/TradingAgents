@@ -11,7 +11,6 @@ export enum AnalysisStatus {
 }
 
 export enum AnalystType {
-  MARKET = "market",
   NEWS = "news",
   FUNDAMENTALS = "fundamentals"
 }
@@ -69,7 +68,6 @@ export interface AnalysisResultResponse {
   ticker: string;
   analysis_date: string;
   status: AnalysisStatus;
-  market_report: string | null;
   news_report: string | null;
   fundamentals_report: string | null;
   investment_debate_state: any | null;

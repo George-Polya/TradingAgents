@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage
 import time
 import json
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 
 def create_bull_researcher(llm, memory):
@@ -10,11 +11,11 @@ def create_bull_researcher(llm, memory):
         bull_history = investment_debate_state.get("bull_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
+        # market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        curr_situation = f"{market_research_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -33,7 +34,6 @@ Key points to focus on:
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
 
 Resources available:
-Market research report: {market_research_report}
 Latest world affairs news: {news_report}
 Company fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
@@ -42,7 +42,9 @@ Reflections from similar situations and lessons learned: {past_memory_str}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position. You must also address reflections and learn from lessons and mistakes you made in the past.
 """
 
-        response = llm.invoke(prompt)
+        response = llm.invoke(prompt, 
+            tools = [GenAITool(google_search={})]
+        )
 
         argument = f"Bull Analyst: {response.content}"
 

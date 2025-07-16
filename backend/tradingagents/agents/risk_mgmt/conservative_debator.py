@@ -1,7 +1,7 @@
 from langchain_core.messages import AIMessage
 import time
 import json
-
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 def create_safe_debator(llm):
     def safe_node(state) -> dict:
@@ -12,7 +12,7 @@ def create_safe_debator(llm):
         current_risky_response = risk_debate_state.get("current_risky_response", "")
         current_neutral_response = risk_debate_state.get("current_neutral_response", "")
 
-        market_research_report = state["market_report"]
+        # market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
@@ -26,15 +26,16 @@ As the Safe/Conservative Risk Analyst, your primary objective is to protect asse
 
 Your task is to actively counter the arguments of the Risky and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
 
-Market Research Report: {market_research_report}
 Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here is the last response from the risky analyst: {current_risky_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
 
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting."""
 
-        response = llm.invoke(prompt)
-
+        response = llm.invoke(prompt, 
+            tools = [GenAITool(google_search={})]
+        )
+        
         argument = f"Safe Analyst: {response.content}"
 
         new_risk_debate_state = {

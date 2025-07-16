@@ -1,17 +1,17 @@
 import functools
 import time
 import json
-
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 def create_trader(llm, memory):
     def trader_node(state, name):
         company_name = state["company_of_interest"]
         investment_plan = state["investment_plan"]
-        market_research_report = state["market_report"]
+        # market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        curr_situation = f"{market_research_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -33,7 +33,9 @@ You are a trading agent analyzing market data to make investment decisions. Base
             context,
         ]
 
-        result = llm.invoke(messages)
+        result = llm.invoke(messages,
+            tools = [GenAITool(google_search={})]
+        )
 
         return {
             "messages": [result],

@@ -74,12 +74,19 @@ class AnalysisService:
         analysis_id = self.ulid.generate()
         now = datetime.now()
         
+        logger.info(f"🔍 Debug - 요청받은 분석가들: {request.analysts}")
+        logger.info(f"🔍 Debug - 분석가 타입: {type(request.analysts)}")
+        logger.info(f"🔍 Debug - 분석가 길이: {len(request.analysts) if request.analysts else 0}")
+        
+        analysts_selected = [analyst.value for analyst in request.analysts]
+        logger.info(f"🔍 Debug - 변환된 분석가들: {analysts_selected}")
+        
         analysis_vo = AnalysisVO(
             id=analysis_id,
             member_id=member_id,
             ticker=request.ticker,
             analysis_date=request.analysis_date,
-            analysts_selected=[analyst.value for analyst in request.analysts],
+            analysts_selected=analysts_selected,
             research_depth=request.research_depth,
             llm_provider=request.llm_provider,
             backend_url=request.backend_url,
@@ -194,6 +201,8 @@ class AnalysisService:
         try:
             logger.info(f"📊 거래 분석 시작 - ID: {analysis_id}, 티커: {analysis.ticker}")
             logger.info(f"👥 선택된 분석가들: {analysis.analysts_selected}")
+            logger.info(f"👥 분석가 타입: {type(analysis.analysts_selected)}")
+            logger.info(f"👥 분석가 길이: {len(analysis.analysts_selected)}")
             logger.info(f"⚙️ 설정: {config}")
             
             # TradingAgentsGraph 초기화
@@ -255,22 +264,30 @@ class AnalysisService:
         updates = {}
         
         # 개별 분석가 보고서 업데이트
-        if "market_report" in chunk and chunk["market_report"]:
-            logger.info("✅ market_report 업데이트")
-            updates["market_report"] = chunk["market_report"]
-        elif "market_report" in chunk:
-            logger.info(f"⚠️ market_report 존재하지만 값이 비어있음: {repr(chunk['market_report'])}")
+        # if "market_report" in chunk and chunk["market_report"]:
+        #     logger.info("✅ market_report 업데이트")
+        #     updates["market_report"] = chunk["market_report"]
+        # elif "market_report" in chunk:
+        #     logger.info(f"⚠️ market_report 존재하지만 값이 비어있음: {repr(chunk['market_report'])}")
             
             
         if "news_report" in chunk and chunk["news_report"]:
             logger.info("✅ news_report 업데이트")
-            updates["news_report"] = chunk["news_report"]
+            # 리스트인 경우 문자열로 변환
+            if isinstance(chunk["news_report"], list):
+                updates["news_report"] = "\n".join(str(item) for item in chunk["news_report"])
+            else:
+                updates["news_report"] = chunk["news_report"]
         elif "news_report" in chunk:
             logger.info(f"⚠️ news_report 존재하지만 값이 비어있음: {repr(chunk['news_report'])}")
             
         if "fundamentals_report" in chunk and chunk["fundamentals_report"]:
             logger.info("✅ fundamentals_report 업데이트")
-            updates["fundamentals_report"] = chunk["fundamentals_report"]
+            # 리스트인 경우 문자열로 변환
+            if isinstance(chunk["fundamentals_report"], list):
+                updates["fundamentals_report"] = "\n".join(str(item) for item in chunk["fundamentals_report"])
+            else:
+                updates["fundamentals_report"] = chunk["fundamentals_report"]
         elif "fundamentals_report" in chunk:
             logger.info(f"⚠️ fundamentals_report 존재하지만 값이 비어있음: {repr(chunk['fundamentals_report'])}")
             
@@ -304,9 +321,10 @@ class AnalysisService:
             
             # Send WebSocket notification for progress update
             current_report = None
-            if "market_report" in updates:
-                current_report = "market_report"
-            elif "news_report" in updates:
+            # if "market_report" in updates:
+            #     current_report = "market_report"
+            # elif "news_report" in updates:
+            if "news_report" in updates:
                 current_report = "news_report"
             elif "fundamentals_report" in updates:
                 current_report = "fundamentals_report"
@@ -331,11 +349,12 @@ class AnalysisService:
         report_parts = []
         
         # Analyst Team Reports
-        if any(final_state.get(section) for section in ["market_report", "news_report", "fundamentals_report"]):
+        # if any(final_state.get(section) for section in ["market_report", "news_report", "fundamentals_report"]):
+        if any(final_state.get(section) for section in ["news_report", "fundamentals_report"]):
             report_parts.append("## Analyst Team Reports")
             
-            if final_state.get("market_report"):
-                report_parts.append(f"### Market Analysis\n{final_state['market_report']}")
+            # if final_state.get("market_report"):
+            #     report_parts.append(f"### Market Analysis\n{final_state['market_report']}")
             if final_state.get("news_report"):
                 report_parts.append(f"### News Analysis\n{final_state['news_report']}")
             if final_state.get("fundamentals_report"):

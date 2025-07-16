@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage
 import time
 import json
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 
 def create_bear_researcher(llm, memory):
@@ -10,11 +11,11 @@ def create_bear_researcher(llm, memory):
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
+        # market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        curr_situation = f"{market_research_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -35,7 +36,6 @@ Key points to focus on:
 
 Resources available:
 
-Market research report: {market_research_report}
 Latest world affairs news: {news_report}
 Company fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
@@ -44,7 +44,9 @@ Reflections from similar situations and lessons learned: {past_memory_str}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
 """
 
-        response = llm.invoke(prompt)
+        response = llm.invoke(prompt, 
+            tools = [GenAITool(google_search={})]
+        )
 
         argument = f"Bear Analyst: {response.content}"
 

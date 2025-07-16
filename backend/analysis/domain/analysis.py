@@ -17,7 +17,7 @@ class Analysis(BaseModel):
     status: AnalysisStatus = AnalysisStatus.PENDING
     
     # 개별 분석가 리포트들
-    market_report: str | None = None
+    # market_report: str | None = None
     news_report: str | None = None
     fundamentals_report: str | None = None
     

@@ -41,38 +41,47 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
+        self, selected_analysts=["news", "fundamentals"]  # "market" removed
     ):
         """Set up and compile the agent workflow graph.
 
         Args:
             selected_analysts (list): List of analyst types to include. Options are:
-                - "market": Market analyst
+                # - "market": Market analyst
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
         """
+        # Filter out unavailable analysts
+        available_analysts = ["news", "fundamentals"]  # "market", "social" are disabled
+        original_analysts = selected_analysts.copy()
+        selected_analysts = [analyst for analyst in selected_analysts if analyst in available_analysts]
+        
+        print(f"🔍 Debug - 원래 선택된 분석가: {original_analysts}")
+        print(f"🔍 Debug - 사용 가능한 분석가: {available_analysts}")
+        print(f"🔍 Debug - 필터링 후 분석가: {selected_analysts}")
+        
         if len(selected_analysts) == 0:
-            raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
+            raise ValueError(f"Trading Agents Graph Setup Error: no analysts selected! Original: {original_analysts}, Available: {available_analysts}")
 
         # Create analyst nodes
         analyst_nodes = {}
         delete_nodes = {}
         tool_nodes = {}
 
-        if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm, self.toolkit
-            )
-            delete_nodes["market"] = create_msg_delete()
-            tool_nodes["market"] = self.tool_nodes["market"]
+        # if "market" in selected_analysts:
+        #     analyst_nodes["market"] = create_market_analyst(
+        #         self.quick_thinking_llm, self.toolkit
+        #     )
+        #     delete_nodes["market"] = create_msg_delete()
+        #     tool_nodes["market"] = self.tool_nodes["market"]
 
-        if "social" in selected_analysts:
-            analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm, self.toolkit
-            )
-            delete_nodes["social"] = create_msg_delete()
-            tool_nodes["social"] = self.tool_nodes["social"]
+        # if "social" in selected_analysts:
+        #     analyst_nodes["social"] = create_social_media_analyst(
+        #         self.quick_thinking_llm, self.toolkit
+        #     )
+        #     delete_nodes["social"] = create_msg_delete()
+        #     tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
             analyst_nodes["news"] = create_news_analyst(

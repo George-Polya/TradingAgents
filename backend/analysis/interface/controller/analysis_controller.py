@@ -76,7 +76,7 @@ def get_analysis_result(
         ticker=analysis.ticker,
         analysis_date=analysis.analysis_date.isoformat() if hasattr(analysis.analysis_date, 'isoformat') else str(analysis.analysis_date),
         status=analysis.status,
-        market_report=analysis.market_report,
+        # market_report=analysis.market_report,
         news_report=analysis.news_report,
         fundamentals_report=analysis.fundamentals_report,
         investment_debate_state=analysis.investment_debate_state,

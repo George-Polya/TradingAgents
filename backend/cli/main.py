@@ -62,7 +62,7 @@ class MessageBuffer:
         }
         self.current_agent = None
         self.report_sections = {
-            "market_report": None,
+            # "market_report": None,
             "sentiment_report": None,
             "news_report": None,
             "fundamentals_report": None,
@@ -103,7 +103,7 @@ class MessageBuffer:
         if latest_section and latest_content:
             # Format the current section for display
             section_titles = {
-                "market_report": "Market Analysis",
+                # "market_report": "Market Analysis",
                 "sentiment_report": "Social Sentiment",
                 "news_report": "News Analysis",
                 "fundamentals_report": "Fundamentals Analysis",
@@ -125,17 +125,17 @@ class MessageBuffer:
         if any(
             self.report_sections[section]
             for section in [
-                "market_report",
+                # "market_report",
                 "sentiment_report",
                 "news_report",
                 "fundamentals_report",
             ]
         ):
             report_parts.append("## Analyst Team Reports")
-            if self.report_sections["market_report"]:
-                report_parts.append(
-                    f"### Market Analysis\n{self.report_sections['market_report']}"
-                )
+            # if self.report_sections["market_report"]:
+            #     report_parts.append(
+            #         f"### Market Analysis\n{self.report_sections['market_report']}"
+            #     )
             if self.report_sections["sentiment_report"]:
                 report_parts.append(
                     f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
@@ -524,15 +524,15 @@ def display_complete_report(final_state):
     analyst_reports = []
 
     # Market Analyst Report
-    if final_state.get("market_report"):
-        analyst_reports.append(
-            Panel(
-                Markdown(final_state["market_report"]),
-                title="Market Analyst",
-                border_style="blue",
-                padding=(1, 2),
-            )
-        )
+    # if final_state.get("market_report"):
+    #     analyst_reports.append(
+    #         Panel(
+    #             Markdown(final_state["market_report"]),
+    #             title="Market Analyst",
+    #             border_style="blue",
+    #             padding=(1, 2),
+    #         )
+    #     )
 
     # Social Analyst Report
     if final_state.get("sentiment_report"):
@@ -872,11 +872,11 @@ def run_analysis():
 
                 # Update reports and agent status based on chunk content
                 # Analyst Team Reports
-                if "market_report" in chunk and chunk["market_report"]:
-                    message_buffer.update_report_section(
-                        "market_report", chunk["market_report"]
-                    )
-                    message_buffer.update_agent_status("Market Analyst", "completed")
+                # if "market_report" in chunk and chunk["market_report"]:
+                #     message_buffer.update_report_section(
+                #         "market_report", chunk["market_report"]
+                #     )
+                #     message_buffer.update_agent_status("Market Analyst", "completed")
                     # Set next analyst to in_progress
                     if "social" in selections["analysts"]:
                         message_buffer.update_agent_status(

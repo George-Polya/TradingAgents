@@ -1,6 +1,6 @@
 import time
 import json
-
+from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
 
 def create_risky_debator(llm):
     def risky_node(state) -> dict:
@@ -11,7 +11,7 @@ def create_risky_debator(llm):
         current_safe_response = risk_debate_state.get("current_safe_response", "")
         current_neutral_response = risk_debate_state.get("current_neutral_response", "")
 
-        market_research_report = state["market_report"]
+        # market_research_report = state["market_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
@@ -25,14 +25,15 @@ As the Risky Risk Analyst, your role is to actively champion high-reward, high-r
 
 Your task is to create a compelling case for the trader's decision by questioning and critiquing the conservative and neutral stances to demonstrate why your high-reward perspective offers the best path forward. Incorporate insights from the following sources into your arguments:
 
-Market Research Report: {market_research_report}
 Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_safe_response} Here are the last arguments from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
 
 Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting."""
 
-        response = llm.invoke(prompt)
+        response = llm.invoke(prompt, 
+            tools = [GenAITool(google_search={})]
+        )
 
         argument = f"Risky Analyst: {response.content}"
 
