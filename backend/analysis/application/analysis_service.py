@@ -7,10 +7,13 @@ from analysis.interface.dto import TradingAnalysisRequest, AnalysisProgressUpdat
 from fastapi import HTTPException, status, BackgroundTasks
 import asyncio
 from datetime import datetime
+from typing import Optional
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from analysis.application.websocket_manager import WebSocketManager
+from analysis.application.websocket_callback_handler import WebSocketCallbackHandler
+from analysis.application.websocket_messages import MessageType, AnalysisStartMessage
 from analysis.infra.db_models.analysis import AnalysisStatus
 
 # 로거 설정 - 모듈명을 명확히 지정
@@ -103,8 +106,9 @@ class AnalysisService:
         
         self.session.commit()
         
-        # Register analysis with websocket manager
-        self.websocket_manager.register_analysis(saved_analysis.id, member_id)
+        # Register analysis with websocket manager if available
+        if self.websocket_manager:
+            self.websocket_manager.register_analysis(saved_analysis.id, member_id)
         
         # 백그라운드에서 분석 실행
         background_tasks.add_task(self._run_analysis, saved_analysis.id)
@@ -126,12 +130,13 @@ class AnalysisService:
             if not analysis:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
             
-            
-            await self.websocket_manager.send_analysis_update(
-                analysis_id=analysis_id,
-                update_type="status_changed",
-                data={"status": "running", "message": "Analysis started"}
-            )
+            # Send status update if WebSocket manager is available
+            if self.websocket_manager:
+                await self.websocket_manager.send_analysis_update(
+                    analysis_id=analysis_id,
+                    update_type="status_changed",
+                    data={"status": "running", "message": "Analysis started"}
+                )
             
             
             
@@ -153,12 +158,13 @@ class AnalysisService:
             self.analysis_repo.update(completed_analysis)
             self.session.commit()
             
-            # Send WebSocket notification for analysis completion
-            await self.websocket_manager.send_analysis_update(
-                analysis_id=analysis_id,
-                update_type="status_changed",
-                data={"status": "completed", "message": "Analysis completed successfully"}
-            )
+            # Send WebSocket notification for analysis completion if available
+            if self.websocket_manager:
+                await self.websocket_manager.send_analysis_update(
+                    analysis_id=analysis_id,
+                    update_type="status_changed",
+                    data={"status": "completed", "message": "Analysis completed successfully"}
+                )
             
             
         except Exception as e:
@@ -175,12 +181,13 @@ class AnalysisService:
             self.analysis_repo.update(updates)
             self.session.commit()
             
-            # Send WebSocket notification for analysis failure
-            await self.websocket_manager.send_analysis_update(
-                analysis_id=analysis_id,
-                update_type="status_changed",
-                data={"status": "failed", "message": f"Analysis failed: {str(e)}"}
-            )
+            # Send WebSocket notification for analysis failure if available
+            if self.websocket_manager:
+                await self.websocket_manager.send_analysis_update(
+                    analysis_id=analysis_id,
+                    update_type="status_changed",
+                    data={"status": "failed", "message": f"Analysis failed: {str(e)}"}
+                )
 
 
     def _create_config(self, analysis: AnalysisVO) -> dict:
@@ -205,6 +212,18 @@ class AnalysisService:
             logger.info(f"👥 분석가 길이: {len(analysis.analysts_selected)}")
             logger.info(f"⚙️ 설정: {config}")
             
+            # Send analysis start message if WebSocket manager is available
+            if self.websocket_manager:
+                await self.websocket_manager.send_analysis_update(
+                    analysis_id=analysis_id,
+                    update_type=MessageType.ANALYSIS_START.value,
+                    data={
+                        "ticker": analysis.ticker,
+                        "analysts_selected": analysis.analysts_selected,
+                        "research_depth": analysis.research_depth
+                    }
+                )
+            
             # TradingAgentsGraph 초기화
             graph = TradingAgentsGraph(
                 analysis.analysts_selected,
@@ -219,6 +238,22 @@ class AnalysisService:
                 analysis.analysis_date
             )
             args = graph.propagator.get_graph_args()
+            
+            # Create WebSocket callback handler if WebSocket manager is available
+            callbacks = []
+            if self.websocket_manager:
+                websocket_callback = WebSocketCallbackHandler(
+                    websocket_manager=self.websocket_manager,
+                    analysis_id=analysis_id
+                )
+                callbacks.append(websocket_callback)
+                logger.info("✅ WebSocket 콜백 핸들러 생성 완료")
+            
+            # Add callbacks to graph args
+            if callbacks:
+                if "config" not in args:
+                    args["config"] = {}
+                args["config"]["callbacks"] = callbacks
             
             # 분석 실행 및 결과 처리
             logger.info("🚀 그래프 실행 시작...")
@@ -254,8 +289,32 @@ class AnalysisService:
 
                 logger.info(f"🎉 분석 완료 - ID: {analysis_id}")
                 
+                # Send analysis complete message if WebSocket manager is available
+                if self.websocket_manager:
+                    await self.websocket_manager.send_analysis_update(
+                        analysis_id=analysis_id,
+                        update_type=MessageType.ANALYSIS_COMPLETE.value,
+                        data={
+                            "ticker": analysis.ticker,
+                            "final_decision": final_decision,
+                            "summary": "Analysis completed successfully"
+                        }
+                    )
+                
         except Exception as e:
             logger.error(f"🔴 분석 실패 - Analysis ID: {analysis_id}, 오류: {str(e)}")
+            
+            # Send analysis error message if WebSocket manager is available
+            if self.websocket_manager:
+                await self.websocket_manager.send_analysis_update(
+                    analysis_id=analysis_id,
+                    update_type=MessageType.ANALYSIS_ERROR.value,
+                    data={
+                        "error": str(e),
+                        "phase": "analysis_execution"
+                    }
+                )
+            
             raise Exception(f"Analysis execution failed: {str(e)}")
 
     async def _process_analysis_chunk(self, analysis_id: str, chunk: dict):
@@ -333,14 +392,16 @@ class AnalysisService:
             elif "final_trade_decision" in updates:
                 current_report = "final_trade_decision"
             
-            await self.websocket_manager.send_analysis_update(
-                analysis_id=analysis_id,
-                update_type="progress_update",
-                data={
-                    "current_report_section": current_report,
-                    "message": f"Updated {current_report}" if current_report else "Processing..."
-                }
-            )
+            # Send progress update if WebSocket manager is available
+            if self.websocket_manager:
+                await self.websocket_manager.send_analysis_update(
+                    analysis_id=analysis_id,
+                    update_type="progress_update",
+                    data={
+                        "current_report_section": current_report,
+                        "message": f"Updated {current_report}" if current_report else "Processing..."
+                    }
+                )
         else:
             logger.info("❌ 업데이트할 데이터가 없음")
 

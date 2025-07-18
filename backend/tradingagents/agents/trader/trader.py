@@ -2,6 +2,7 @@ import functools
 import time
 import json
 from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
+from tradingagents.agents.utils.websocket_utils import create_agent_config
 
 def create_trader(llm, memory):
     def trader_node(state, name):
@@ -33,7 +34,12 @@ You are a trading agent analyzing market data to make investment decisions. Base
             context,
         ]
 
-        result = llm.invoke(messages,
+        # Create config with agent metadata
+        config = create_agent_config("Trader", "투자 결정 분석 중")
+        
+        result = llm.invoke(
+            messages,
+            config=config,
             tools = [GenAITool(google_search={})]
         )
 

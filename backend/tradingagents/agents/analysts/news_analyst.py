@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
 from google.ai.generativelanguage_v1beta.types import Tool as GenAITool
+from tradingagents.agents.utils.websocket_utils import create_agent_config
 
 def create_news_analyst(llm, toolkit):
     def news_analyst_node(state):
@@ -43,8 +44,14 @@ def create_news_analyst(llm, toolkit):
         prompt = prompt.partial(ticker=ticker)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"],
-                tools = [GenAITool(google_search={})]                      
+        
+        # Create config with agent metadata
+        config = create_agent_config("News Analyst", "뉴스 데이터 수집 및 분석 중")
+        
+        result = chain.invoke(
+            state["messages"],
+            config=config,
+            tools = [GenAITool(google_search={})]                      
         )
 
 
