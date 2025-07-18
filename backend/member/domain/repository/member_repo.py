@@ -19,6 +19,3 @@ class IMemberRepository(ABC):
     def get_members(self, page: int, items_per_page: int) -> tuple[int, list[MemberVO]]:
         raise NotImplementedError()
 
-    @abstractmethod
-    def find_analyses_by_member(self, member_id: str) -> list[AnalysisVO]:
-        raise NotImplementedError()

@@ -66,19 +66,3 @@ class MemberRepository(IMemberRepository):
         
         return MemberVO(**row_to_dict(member))
     
-    def find_analyses_by_member(self, member_id: str) -> list[AnalysisVO]:
-        # selectinload를 사용하여 N+1 문제 방지
-        # Member와 함께 analyses를 한 번의 추가 쿼리로 로드
-        query = (
-            select(Member)
-            .options(selectinload(Member.analyses))
-            .where(Member.id == member_id)
-        )
-        
-        member = self.session.exec(query).first()
-        
-        if not member:
-            return []
-        
-        # Member의 analyses를 AnalysisVO로 변환
-        return [AnalysisVO(**row_to_dict(analysis)) for analysis in member.analyses]
